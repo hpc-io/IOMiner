@@ -1,0 +1,56 @@
+IOMiner scripts for analyzing parallel I/O logs
+
+- Parsers for parsing Darshan data and Slurm job log data
+- Analyzers for analyzing Darshan, LMT, and Slurm job log data
+
+Code structure:
+---------------
+-iominer 
+	- parsers
+		- parse_darshan.py
+		- parse_vpic.py
+		- collect_piok.py
+		- collect_slurm_month.py
+		- collect_vpic.py
+	- analyzers
+		- process_darshan_v3.py	
+		- process_slurm.py
+		- process_darshan.py	
+		- process_lmt.py		
+		- process_ssio.py
+
+
+
+Instructions to use process_ssio.py on Cori @ NERSC:
+====================================================
+
+Obtain compute nodes for interactive processing:
+
+> salloc -C haswell -N 4 -p debug --mem=122GB -t 00:30:00 -L SCRATCH
+
+	* For longer than 30 min operations, need to use "regular" queue
+
+After compute nodes are available:
+
+> module load cray-hdf5
+> module load python/2.7-anaconda 
+> module load darshan
+> module load spark
+> start-all.sh
+
+> pyspark
+
+%% After pyspark starts:
+>>> execfile('PATH_TO_IOMINER/process_ssio.py')
+
+>>> exit()
+
+
+* There are several paths in the code, that are "hard-coded".
+
+plot_dir = '/global/homes/w/wyoo/plots/'
+** plot_dir refers to the directory location where generated plots are stored.
+
+
+
+
