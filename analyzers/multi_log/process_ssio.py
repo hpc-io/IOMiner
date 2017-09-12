@@ -9,9 +9,9 @@ from os.path import expanduser
 from operator import add
 import sys
 from pyspark import SparkContext
-from analyzers.process_darshan_v3 import *
-from analyzers.process_lmt import *
-from analyzers.process_slurm import *
+from analyzers.multi_log.process_darshan_v3 import *
+from analyzers.multi_log.process_lmt import *
+from analyzers.multi_log.process_slurm import *
 
 #%matplotlib inline
 #%matplotlib auto
