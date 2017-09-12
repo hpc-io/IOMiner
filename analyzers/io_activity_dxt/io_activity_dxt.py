@@ -1,4 +1,5 @@
 #!/usr/bin/env python2
+# Authors: Peter Harrington and Alex Sim
 # Email questions to SDMSUPPORT@LBL.GOV
 # Scientific Data Management Research Group
 # Lawrence Berkeley National Laboratory
