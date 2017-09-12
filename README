@@ -13,16 +13,19 @@ Code structure:
 		- collect_slurm_month.py
 		- collect_vpic.py
 	- analyzers
-		- process_darshan_v3.py	
-		- process_slurm.py
-		- process_darshan.py	
-		- process_lmt.py		
-		- process_ssio.py
+		- multi_log
+			- process_darshan_v3.py	
+			- process_slurm.py
+			- process_darshan.py	
+			- process_lmt.py		
+			- process_ssio.py
+		- io_activity_dxt
+			- io_activity_dxt.py
 
 
 
-Instructions to use process_ssio.py on Cori @ NERSC:
-====================================================
+Instructions to use analyzers/multi_log/process_ssio.py on Cori @ NERSC:
+========================================================================
 
 Obtain compute nodes for interactive processing:
 
@@ -52,5 +55,9 @@ plot_dir = '/global/homes/w/wyoo/plots/'
 ** plot_dir refers to the directory location where generated plots are stored.
 
 
+Instructions to use analyzers/io_activity_dxt/io_activity_dxt.py on Cori @ NERSC:
+================================================================================
+
+See ./analyzers/io_activity_dxt/README.txt
 
 
