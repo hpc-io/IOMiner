@@ -7,8 +7,8 @@
 
 To plot the read or write activity from Darshan Extended Trace (DXT) logs.
 
-% ./io_activity_dxt.py --help
-usage: io_activity_dxt.py [-h] -i DXT_LOGNAME [-o SAVEFIG] [--show] [--read]
+% ./dxt_analyzer.py --help
+usage: dxt_analyzer.py [-h] -i DXT_LOGNAME [-o SAVEFIG] [--show] [--read]
                             [--filemode] [-f FNAME]
 
 io activity plot from dxt log
@@ -28,19 +28,19 @@ optional arguments:
                         name of file to be plotted (must use with --filemode)
 
 Example runs:
-% python io_activity_dxt.py -i darshan_dxt-a.txt 
+% python dxt_analyzer.py -i darshan_dxt-a.txt 
 
-% python io_activity_dxt.py -i darshan_dxt-a.txt \
+% python dxt_analyzer.py -i darshan_dxt-a.txt \
         --filemode -f /global/cscratch1/sd/asim/amrex/a24/plt00000.hdf5
 
-% python io_activity_dxt.py -i darshan_dxt-d.txt \
+% python dxt_analyzer.py -i darshan_dxt-d.txt \
 	-o dxt-d.pdf
 
-% python io_activity_dxt.py -i darshan_dxt-df.txt 
+% python dxt_analyzer.py -i darshan_dxt-df.txt 
 
-% python io_activity_dxt.py -i darshan_dxt-c.txt 
+% python dxt_analyzer.py -i darshan_dxt-c.txt 
 
-% python io_activity_dxt.py -i darshan_dxt-v.txt 
+% python dxt_analyzer.py -i darshan_dxt-v.txt 
 
 
 For more information on creating DXT logs, see:
