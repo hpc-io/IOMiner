@@ -3,7 +3,7 @@ import string
 import re
 import time
 from bitmap import *
-plot_dir = "/global/cscratch1/sd/tengwang/miner0612/plots/allpkl/"
+plot_dir = "/global/cscratch1/sd/tengwang/miner1217/plots/allpkl/"
 
 fname = plot_dir + "mpi_prb0_1.pkl"
 file_pos = 0
@@ -13,38 +13,22 @@ def getJobBW(fname):
     bw_file_pair = pickle.load(pickle_file)
     return bw_file_pair
 
-# unique: 0 0 0
-# shared: 1 6442450944 6442450944
-
-# performance
-# -----------
-# total_bytes: 6442450944
-#
-# I/O timing for unique files (seconds):
-# ...........................
-# unique files: slowest_rank_io_time: 0.000000
-# unique files: slowest_rank_meta_only_time: 0.000000
-# unique files: slowest rank: 0
 
 IO_MODE_PATTERN = '(#\s+):\s+(\S+)\s+(\S+)\s+(\S+)'
 IND_SHARED_PATTERN = '(#\s+):\s+(\S+):\s+(\S+)'
 FS_PATTERN = '(#\s+)(mount entry):\s+(\S+)\s+(\S+)' 
 fs_pattern = re.compile(FS_PATTERN)
-# mount entry:  /var/opt/cray/imps-distribution/squash/mounts/global    squashfs
-# darshan log version: 3.00
+
 def parseFSList(fname):
     index = 0
     fs_map = []
     with open(fname) as infile:
         for line in infile:
             fs_match = fs_pattern.match(line)
-#            print "line is %s"%line
             if fs_match is not None:
                 fs_map.append((fs_match.group(3), fs_match.group(4)))
     return fs_map
 
-
-#<module>       <rank>  <record id>     <counter>       <value> <file name>     <mount pt>      <fs type>
 
 LOG_PATTERN = '(\S+)\t([+-]?\d+(?:\.\d+)?)\t([+-]?\d+(?:\.\d+)?)\t(\S+)\t([+-]?\d+(?:\.\d+)?)\t(\S+)\t(\S+)\t(\S+)'
 log_pattern = re.compile(LOG_PATTERN)
@@ -65,13 +49,9 @@ nprocs_pattern = re.compile(NPROCS_PATTERN)
 
 KEY_VALUE_PATTERN = '(\S+):(\s+)([+-]?\d+(?:\.\d+)?)'
 kv_pattern = re.compile(KEY_VALUE_PATTERN)
-# nprocs: 1600
 
 HEADER_PATTERN = '(#\s+)(\S+):(\s+)(\d+)'
 header_pattern = re.compile(HEADER_PATTERN)
-# uid: 71113
-# jobid: 5226291
-# <YEAR>/<MONTH>/<DAY>/<USERNAME>_<BINARY_NAME>_<JOB_ID>_<DATE>_<UNIQUE_ID>_<TIMING>.darshan.gz
 
 DARSHAN_FILE_PATTERN = '(\S+)_id(\d+)_\d+-\d+-(\S+).darshan'
 darshan_file_pattern = re.compile(DARSHAN_FILE_PATTERN)
@@ -193,6 +173,7 @@ def print_record_info(record, per_file_handle):
 
     write_tuple_list = []
     read_tuple_list = []
+    max_read_fname=""
     for k in tmp_dict:
         tmp_tmp_dict = tmp_dict[k]
         if tmp_tmp_dict.get("POSIX_F_READ_START_TIMESTAMP", -1) != -1:
@@ -236,6 +217,8 @@ def print_record_info(record, per_file_handle):
             else:
                 read_time = float(tmp_tmp_dict["POSIX_F_READ_END_TIMESTAMP"]) - \
                         float(tmp_tmp_dict["POSIX_F_READ_START_TIMESTAMP"])
+            read_time = float(tmp_tmp_dict["POSIX_F_READ_END_TIMESTAMP"]) - \
+                    float(tmp_tmp_dict["POSIX_F_READ_START_TIMESTAMP"])
 
             read_end = read_start + read_time
 
@@ -278,6 +261,8 @@ def print_record_info(record, per_file_handle):
             else:
                 write_time = float(tmp_tmp_dict["POSIX_F_WRITE_END_TIMESTAMP"]) - \
                         float(tmp_tmp_dict["POSIX_F_WRITE_START_TIMESTAMP"])
+            write_time = float(tmp_tmp_dict["POSIX_F_WRITE_END_TIMESTAMP"]) - \
+                    float(tmp_tmp_dict["POSIX_F_WRITE_START_TIMESTAMP"])
 
             write_end = write_start + write_time
 #            write_end = float(tmp_tmp_dict["POSIX_F_WRITE_END_TIMESTAMP"])
@@ -339,6 +324,8 @@ def print_record_info(record, per_file_handle):
     record["tot_stripe_sz"] = stripe_sz_list
     record["tot_stripe_cnt"] = stripe_cnt_list
 
+    sum_read_tuple = -1
+    sum_write_tuple = -1
     if len(write_tuple_list) != 0:
         print "parsing write job:%s\n"%record["FileName"]
         sum_write_tuple = summarize_file_stat(write_tuple_list, 0)
@@ -348,19 +335,24 @@ def print_record_info(record, per_file_handle):
         sum_read_tuple = summarize_file_stat(read_tuple_list, 0)
         print "read path:%s, small_read:%lf, nconsec_read:%lf, col:%lf, proc_ost_ratio:%lf, time:%lf\n"%(record["FileName"], sum_read_tuple[0][0], sum_read_tuple[0][1], sum_read_tuple[0][2], sum_read_tuple[0][3], sum_read_tuple[1])
 
-    if len(write_tuple_list) != 0:
+    if len(write_tuple_list) != 0 and sum_write_tuple != -1:
         record["sum_write_tuple"] = sum_write_tuple
     else:
         record["sum_write_tuple"] = -1
 
-    if len(read_tuple_list) != 0:
+    if len(read_tuple_list) != 0 and sum_read_tuple != -1:
         record["sum_read_tuple"] = sum_read_tuple
     else:
         record["sum_read_tuple"] = -1
     record["ost_map"] = tmp_bm
 
+    if max_read_fname == "":
+        print "wrong job file is %s\n"%record["FileName"]
+
 ###to add here
     record["max_read_time"] = max_read_time
+    if max_read_fname == "":
+        return -1
     record["max_read_fname"] = max_read_fname
     record["max_read_stat"] = tmp_dict[max_read_fname]
     record["max_write_time"] = max_write_time
@@ -371,6 +363,7 @@ def print_record_info(record, per_file_handle):
 
     return ost_cnt
 
+# for each log file, extract its 'total counters' (e.g., total_POSIX_BYTES_WRITTEN), and store the key-value pairs in out_dict. Then for each file accessed in the job, store its counters in per_file_dict (e.g. per_file_dict[<filename>][key] = value). all out_dict of all jobs are stored in one log file, all per_file_dict of all jobs are stored in another log file. EXTERNAL_FILE_OFFSET and EXTERNAL_FILE_LENGTH in out_dict points to the region of the job's corresponding per_file_dict in another log.  
 def getStatTable(fname, tmpFname, path_tuple, f_handle):
     out_dict = {}
     per_file_dict = {}
@@ -383,14 +376,11 @@ def getStatTable(fname, tmpFname, path_tuple, f_handle):
     userAppName = parse_darshan_user_appname(suffix)
     appName = userAppName.split("_")[1]
     out_dict["AppName"] = appName
-#    print "job id:%s, app name:%s, fname:%s\n"%(jobID, appName, fname)
 
     version_time = 0
+    darshan_version_pattern = re.compile(VERSION_PATTERN)
     with open(fname) as infile:
         for line in infile:
-#            nprocs_match = nprocs_pattern.match(line) 
-#            if nprocs_match is not None:
-#                out_nprocs = int(nprocs_match.group(2))
             version_start = time.time() 
             version_match = darshan_version_pattern.match(line)
             if version_match is not None:
@@ -430,6 +420,7 @@ def getStatTable(fname, tmpFname, path_tuple, f_handle):
     IO_MODE_PATTERN = '(#\s+)(\S+):\s+(\d+)\s+(\d+)\s+(\d+)'
     IND_SHARED_PATTERN = '(#\s+)(\S+\s+\S+):\s+(\S+):\s+(\d+\.\d+)'
     PER_FILE_PATTERN = '([^#]+)(\s+)(\S+)(\s+)(\d+)(\s+(\S+)){12,}'
+    PERF_PATTERN = '(#\s+)(\S+):\s+(\d+\.\d+)'
 
 #    IO_MODE_PATTERN = '(#\s+)(\S+):(\s+)(\d+)'
   
@@ -437,6 +428,7 @@ def getStatTable(fname, tmpFname, path_tuple, f_handle):
     darshan_ind_shared_pattern = re.compile(IND_SHARED_PATTERN)
     darshan_log_pattern = re.compile(LOG_PATTERN)
     darshan_per_file_pattern = re.compile(PER_FILE_PATTERN)
+    darshan_perf_pattern = re.compile(PERF_PATTERN)
 
     file_pattern_match_time = 0
     log_pattern_time = 0
@@ -469,8 +461,10 @@ def getStatTable(fname, tmpFname, path_tuple, f_handle):
                 else:
                     if per_file_dict[file_name].get(per_file_key, -1) != -1:
                         flag = 0
+                        # the same file (file_name)  can be accessed by different ranks. As Darshan generates the same set of its counters for each rank accessing this file, we select the earliest POSIX_F_READ_START_TIMESTAMP of all POSIX_F_READ_START_TIMESTAMP counters as this file's read start time. Same reasoning applies for other counters in the following code. 
                         if "POSIX_F_READ_START_TIMESTAMP" in per_file_key:
                             flag = 1
+                            
                             if float(per_file_val) < float(per_file_dict[file_name][per_file_key]):
                                 per_file_dict[file_name][per_file_key] = per_file_val
                         if "POSIX_F_READ_END_TIMESTAMP" in per_file_key:
@@ -528,7 +522,7 @@ def getStatTable(fname, tmpFname, path_tuple, f_handle):
                 if "LUSTRE_OST_ID" in per_file_key:
                     ost_id = per_file_key.rsplit('_', 1)[1]
                     real_ost_id = int(per_file_dict[file_name][per_file_key])
-             #       print "ostid is %s\n"%ost_id
+                    # store all OSTs of a file in bitmap
                     if per_file_dict[file_name].get("OST_MAP", -1) == -1:
                         bitmap = Bitmap(279)
                         bitmap.set(int(real_ost_id))
@@ -575,6 +569,15 @@ def getStatTable(fname, tmpFname, path_tuple, f_handle):
              #           print "key,value %s,%s\n"%(tmp_key, tmp_val)
             if matched == 1:
                 continue
+
+
+            perf_pattern_match = darshan_perf_pattern.match(line)
+            if perf_pattern_match is not None:
+                tmp_key = key_prefix + perf_pattern_match.group(2)
+                tmp_val = perf_pattern_match.group(3)
+                out_dict[tmp_key] = tmp_val
+                print "######perf:counter:%s, value:%s\n"%(tmp_key, perf_pattern_match.group(3))
+
             file_pattern_match_start = time.time()
             per_file_pattern_match = darshan_per_file_pattern.match(line)
             file_pattern_match_end = time.time()

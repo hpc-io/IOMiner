@@ -1,3 +1,5 @@
+import numpy as np
+import sys
 import datetime
 import time
 import os
@@ -6,7 +8,6 @@ from datetime import datetime,timedelta
 import glob
 import subprocess
 import errno
-import logging
 import json
 import pickle
 import logging
@@ -20,15 +21,13 @@ import matplotlib.ticker as ticker
 from matplotlib.ticker import FuncFormatter
 import numpy as np
 from construct_low_bw import *
-from analyze_low_bw import *
+sys.path.append('../slurm')
 from miner_stat import *
-#from slurm_stat import *
-from miner_plot import *
-from analyze_bug import *
+from slurm_stat import *
 
-plot_dir="/global/cscratch1/sd/tengwang/miner0612/plots/"
 cluster_name = "cori"
-miner_param = json.load(open('/global/cscratch1/sd/tengwang/miner0612/miner_para.conf'))
+root_dir="/global/cscratch1/sd/tengwang/miner1217/"
+miner_param = json.load(open('/global/cscratch1/sd/tengwang/miner1217/miner_para.conf'))
 darshan_root = miner_param[cluster_name]["darshan_root"]
 parsed_darshan_root = miner_param[cluster_name]["parsed_darshan_root"]
 cpy_darshan_root = miner_param[cluster_name]["cpy_darshan_root"]
@@ -81,7 +80,7 @@ def construct_bigtable(format_darshan_root, start_time, end_time, formated_filen
 
     while d <= end_date:
         formated_darshan_path = format_darshan_root + d.strftime("%Y/%-m/%-d/") + formated_filename
-        print "formated_darshan_path:%s\n"%formated_darshan_path
+#        print "formated_darshan_path:%s\n"%formated_darshan_path
         if os.path.exists(formated_darshan_path):
             save_fd = open(formated_darshan_path, 'rb')
             tmp_stat_table = pickle.load(save_fd)
@@ -92,7 +91,7 @@ def construct_bigtable(format_darshan_root, start_time, end_time, formated_filen
                     stat_table.append(tmp_stat)
             save_fd.close()
         d += delta
-    print "stat_table %s length is %d\n"%(formated_filename, len(stat_table))
+#    print "stat_table %s length is %d\n"%(formated_filename, len(stat_table))
     tmp_str = bigtable_log+"_"+formated_filename+".log"
     save_fd = open(tmp_str, 'wb')
     pickle.dump(stat_table, save_fd, -1)
@@ -111,7 +110,7 @@ def get_parsed_list(cpy_darshan_root, parsed_darshan_root, start_time, end_time,
     parsed_rdd_list = []
     while d <= end_date:
         darshan_files = cpy_darshan_root + d.strftime("%Y/%-m/%-d/*.darshan")
-        print "cpy darshan_files is %s\n"%darshan_files
+#        print "cpy darshan_files is %s\n"%darshan_files
         darshan_zip_files = cpy_darshan_root + d.strftime("%Y/%-m/%-d/*.darshan.gz")
         path_list.append(parsed_darshan_root + d.strftime("%Y/%-m/%-d/"))
         parsed_darshan_dir = parsed_darshan_root + d.strftime("%Y/%-m/%-d/")
@@ -350,386 +349,67 @@ def cpy_darshan_files(darshan_root, cpy_darshan_root, start_time, end_time):
 #        rdd2 = rdd.filter(lambda x:not x[1]).map(lambda x:save_cpy_output(x[0], cpy_darshan_dir))
 
 print "/global/cscratch1/sd/darshanlogs/2017/9/24/lfu_vasp_std_id6990941_9-24-21080-1482367210173183023_1.darshan".rpartition('/')[2]
-#cpy_darshan_files(darshan_root, cpy_darshan_root, start_ts, \
-#        end_ts)
-#get_parsed_list(cpy_darshan_root, parsed_darshan_root, start_ts, end_ts, ext = 'all', decompressed_darshan_dir = "", version=3)
-#get_parsed_list(cpy_darshan_root, parsed_darshan_root, start_ts, end_ts, ext = 'total', decompressed_darshan_dir = "", version=3)
+
+# copy darshan files produced during start_ts and end_ts to the directory given by cpy_darshan_root
+
+cpy_darshan_files(darshan_root, cpy_darshan_root, start_ts, \
+        end_ts)
+
+# parse the darshan files into text format, two types of logs are generated, one is .total and one is .all. Refer to Darshan page for understanding these two types. 
+
+get_parsed_list(cpy_darshan_root, parsed_darshan_root, start_ts, end_ts, ext = 'all', decompressed_darshan_dir = "", version=3)
+get_parsed_list(cpy_darshan_root, parsed_darshan_root, start_ts, end_ts, ext = 'total', decompressed_darshan_dir = "", version=3)
+
+
+# format_parsed_files and construct_bigtable construct a bigtable that format each job (darshan log)'s counters as one record in the table. E.g. stat_table[N]["total_POSIX_BYTES_WRITTEN"] gives the total bytes written by Nth job.
+
+
 format_parsed_files(parsed_darshan_root, format_darshan_root, start_ts, end_ts)
 
-io_types = ["WRITE", "READ"]
-fs = "all"
-
 stat_table = construct_bigtable(format_darshan_root, start_ts, end_ts, "formated_tot_stat.pkl")
-
-#start here
-tmp_str = bigtable_log+"_"+"formated_tot_stat.pkl"+".log"
-save_fd = open(tmp_str, 'rb')
-stat_table = pickle.load(save_fd)
-save_fd.close()
-print "number of records is %d\n"%len(stat_table)
-#
+   
+# extract application name from the file name of each log, and attach it to each record.
 new_stat_table = covert_app_name(stat_table)
-tmp_str = bigtable_log+"_"+"formated_tot_stat_adv.pkl"+".log"
+#tmp_str = bigtable_log+"_"+"formated_tot_stat_adv.pkl"+".log"
 save_fd = open(tmp_str, 'wb')
 pickle.dump(new_stat_table, save_fd, -1)
 save_fd.close()
-#
-#
+
+
 tmp_str = bigtable_log+"_"+"formated_tot_stat_adv.pkl"+".log"
 save_fd = open(tmp_str, 'rb')
 stat_table = pickle.load(save_fd)
 save_fd.close()
 
-#format_slurm_files(miner_param["slurm_job_dir"], miner_param["start_ts"], miner_param["end_ts"])
-#slurm_table = retrieve_slurm_files(miner_param["slurm_job_dir"])
-#slurm_util_percent = get_utilization_dist(slurm_table)
 
-sum_job = 0
-sum_file = 0
-print "stat_table size is %d"%len(stat_table)
-for record in stat_table:
-    tmp_cnt = print_record_info(record, per_file_handle)
-    if tmp_cnt != 0:
-        sum_job = sum_job + 1;
-        sum_file = sum_file + tmp_cnt
-print "sum file is %ld, sum job is %d\n"%(sum_file, sum_job)
+# retrieve_slurm_files reads the SLURM table that contains one record for each job. The followed script combines the SLURM records with the records of bigtable_log_formated_tot_stat_adv.pkl.log. Note: SLURM table needs to be constructed before calling retrieve_slurm_files by the scripts slurm_stat.py under slurm/ 
+
+slurm_table = retrieve_slurm_files(miner_param["slurm_job_dir"])
+
+darshan_counter = 0
+darshan_slurm_counter = 0
 #
+slurm_dict = {}
+for record in stat_table:
+    darshan_counter += 1
+    print "job id is %s, darshan_counter:%d, darshan_slurm_counter:%d\n"%(record["JobID"], darshan_counter, darshan_slurm_counter)
+    if (slurm_table.get(record["JobID"], -1) != -1):
+        darshan_slurm_counter += 1
+        value = slurm_table.get(record["JobID"])
+        print "job id is %s in slurm\n"%record["JobID"]
+        for tmp_dict in value:
+            if "batch" not in tmp_dict["JobID"] and "extern" not in tmp_dict["JobID"]:
+                record["nnodes"] = tmp_dict["AllocNodes"] 
+                record["cpus"] = tmp_dict["AllocCPUS"] 
+                slurm_dict[record["JobID"]] = {}
+                slurm_dict[record["JobID"]]["nnodes"] = record["nnodes"]
+                slurm_dict[record["JobID"]]["cpus"] = record["cpus"]
+#
+#print "######darshan_counter:%d, darshan_slurm_counter:%d\n"%(darshan_counter, darshan_slurm_counter)
 tmp_str = bigtable_log+"_"+"formated_tot_stat_adv.pkl"+".log"
 save_fd = open(tmp_str, 'wb')
 pickle.dump(stat_table, save_fd, -1)
 save_fd.close()
 
-##start here
-#tmp_str = bigtable_log+"_"+"formated_tot_stat_adv.pkl"+".log"
-#save_fd = open(tmp_str, 'rb')
-#stat_table = pickle.load(save_fd)
-#save_fd.close()
-#agg_tuple = tot_app_size_time(stat_table)
-#print "read_size:%ld, write_size:%ld, time:%ld, len:%d\n"%(agg_tuple[0], agg_tuple[1], agg_tuple[2], len(stat_table))
-#
-#
-#app_list = app_total_size_order(stat_table, "READ")
-#plot_path = miner_param["dataset_path"]+"top_read_app.pkl" 
-#save_fd = open(plot_path, 'wb')
-#pickle.dump(app_list, save_fd, -1)
-#save_fd.close()
-#plotTopIOApp(app_list, "READ")
-#
-#cursor = 0
-#print "######top readers based on aggregate read size:\n"
-#for row in app_list:
-#    print "app name:%s, aggregate read size:%ld, path:%s, nprocs:%ld, write size:%ld\n"%(row[0], row[1], row[2], row[3], row[4])
-#    cursor = cursor + 1
-#    if cursor == 10:
-#        break
-#
-#print "######top writers based on aggregate write size:\n"
-#cursor = 0
-#app_list = app_total_size_order(stat_table, "WRITE")
-#plot_path = miner_param["dataset_path"]+"top_write_app.pkl" 
-#save_fd = open(plot_path, 'wb')
-#pickle.dump(app_list, save_fd, -1)
-#save_fd.close()
-#plotTopIOApp(app_list, "WRITE")
-#
-#for row in app_list:
-#    print "app name:%s, aggregate write size:%ld, path:%s, nprocs:%ld, read size:%ld\n"%(row[0], row[1], row[2], row[3], row[5])
-#    cursor = cursor + 1
-#    if cursor == 10:
-#        break
-#
-#out_dict = {}
-#abnormal_lst = {}
-#io_type = "READ"
-#(out_dict, abnormal_lst) = get_io_pat_hist(stat_table, 100)
-#plot_path = miner_param["dataset_path"]+"seq_dist.pkl" 
-#save_fd = open(plot_path, 'wb')
-#pickle.dump(out_dict, save_fd, -1)
-#save_fd.close()
-#plotSeqDist(out_dict["seq"], "ALL", 10)
-#
-#
-#ratio_list = []
-#ratio_list = read_write_ratio(stat_table, 100)
-#plot_path = miner_param["dataset_path"]+"read_write_ratio.pkl" 
-#save_fd = open(plot_path, 'wb')
-#pickle.dump(ratio_list, save_fd, -1)
-#save_fd.close()
-#plotReadWriteRatioDist(ratio_list, 10, 100)
-#
-
-#out_dict = {}
-#out_dict = ioTypeBin(stat_table)
-#plot_path = miner_param["dataset_path"]+"io_type.pkl" 
-#save_fd = open(plot_path, 'wb')
-#pickle.dump(out_dict, save_fd, -1)
-#save_fd.close()
-#plotIOTypeDist(out_dict)
-#
-#out_dict = {}
-#out_dict = getProcFileRatio(stat_table, 5)
-#plot_path = miner_param["dataset_path"]+"proc_file_ratio.pkl" 
-#save_fd = open(plot_path, 'wb')
-#pickle.dump(out_dict, save_fd, -1)
-#save_fd.close()
-#plotProcFileRatio(out_dict)
-
-#save_fd = open("abnormal_read.log", 'wb')
-#pickle.dump(abnormal_lst, save_fd, -1)
-#save_fd.close()
-    
-#plotConsecDist(out_dict["consec"], io_type, 10)
-#plotSmallDist(out_dict["small_io"], io_type, 10)
-
-
-#
-#print "after filtering there are %d jobs\n"%len(stat_table)
-#
-#io_type = "READ"
-#out_dict = {}
-#out_dict = get_fs_hist(stat_table, io_type, 1000, 1024*1048576)
-#plotFSDist(out_dict)
-#
-#for key,value in out_dict.iteritems():
-#	print "fs:key:%s, value:%d\n"%(key, value)
-#
-#io_type = "READ"
-#out_lst = []
-#out_lst = getDataSizeHist(stat_table, 100, io_type)
-#plotDataSizeDist(out_lst, io_type, 10)
-#
-#io_type = "WRITE"
-#out_lst = []
-#out_lst = getDataSizeHist(stat_table, 100, io_type)
-#plotDataSizeDist(out_lst, io_type, 10)
-#
-#
-#out_lst = []
-#out_lst = getProcCntHist(stat_table, 100)
-#plotProcCntDist(out_lst, 10)
-#io_type = "WRITE"
-#out_list = []
-#out_list = getBWHist(stat_table, 100, io_type)
-##for i in out_list:
-##    print "mybw:%lf\n"%i
-#plotBWDist(out_list, io_type, 10)
-#
-#
-#out_list = []
-#io_type = "READ"
-#out_list = getBWHist(stat_table, 100, io_type)
-#plotBWDist(out_list, io_type, 10)
-#
-#
-#
-#out_dict = {}
-#abnormal_lst = {}
-#io_type = "WRITE"
-#(out_dict, abnormal_lst) = get_fs_pattern_hist(stat_table, io_type, 100)
-#save_fd = open("abnormal_write.log", 'wb')
-#pickle.dump(abnormal_lst, save_fd, -1)
-#save_fd.close()
-
-
-#save_fd = open("abnormal_read.log", 'rb')
-#abn_table = pickle.load(save_fd)
-#save_fd.close()
-#bug_dict = get_app_hist(abn_table)
-#
-#get_bug_hist("read", stat_table, bug_dict)
-#
-#save_fd = open("abnormal_write.log", 'rb')
-#abn_table = pickle.load(save_fd)
-#save_fd.close()
-#bug_dict = get_app_hist(abn_table)
-#get_bug_hist("write", stat_table, bug_dict)
-
-#out_tuples = vectorize(stat_table, "READ", 4, 1073741824, 1000, long(10737418240), long(107374182400))
-#tmp_str = bigtable_log+"_"+"formated_tot_stat_adv_third.pkl"+".log"
-#save_fd = open(tmp_str, 'rb')
-#stat_table = pickle.load(save_fd)
-#save_fd.close()
-
-#data_size = 1073741824
-#proc_cnt = 1000
-#stat_table = filterMeaningfulJob(stat_table, data_size, proc_cnt)
-#
-#job_name = "meaningful_%ld.log"%data_size
-#meaningful_job_fd = open(job_name, 'wb')
-#pickle.dump(stat_table, meaningful_job_fd, -1)
-#meaningful_job_fd.close()
-#
-#data_size = 10737418240
-#proc_cnt = 1000
-#stat_table = filterMeaningfulJob(stat_table, data_size, proc_cnt)
-#
-#job_name = "meaningful_%ld.log"%data_size
-#meaningful_job_fd = open(job_name, 'wb')
-#pickle.dump(stat_table, meaningful_job_fd, -1)
-#meaningful_job_fd.close()
-
-data_size = 1073741824
-proc_cnt = 1000
-job_name = "meaningful_%ld.log"%data_size
-meaningful_job_fd = open(job_name, 'rb')
-stat_table = pickle.load(meaningful_job_fd)
-meaningful_job_fd.close()
-tot_sum = 0
-slurm_sum = 0
-for row in stat_table:
-    if row.get("nnodes", -1) == -1:
-        slurm_sum += 1
-    tot_sum += 1
-#    print "file:%s, node count:%s, proc count:%s\n"%(row["FileName"], row["nnodes"], row["nprocs"])
-print "slurm_sum:%d, tot_sum:%d\n"%(slurm_sum, tot_sum)
-
-#out_lst = largeFileIOHist(stat_table, 100, "READ", 1073741824, 1000, 0, 1073741824)
-#plotLargeFileIODist(out_lst, "READ", 10)
-#
-#out_lst = largeFileIOHist(stat_table, 100, "WRITE", 1073741824, 1000, 0, 1073741824)
-#plotLargeFileIODist(out_lst, "WRITE", 10)
-#
-
-is_per_factor = 0
-if is_per_factor == 0:
-    multiply = 10
-else:
-    multiply = 16
-per_proc_size = 10485760
-print "###bad read performance instance:\n"
-out_lst = vectorize_sweepline(stat_table, "READ", 4, 10737418240, 1073741824000, 1000, 0, long(1073741824), per_proc_size, is_per_factor)
-print "out_lst length is %d\n"%len(out_lst)
-
-tmp_dict = {}
-max_val = 0
-max_app = ""
-for i in range(0, len(out_lst)):
-    if tmp_dict.get(out_lst[i][2][1], -1) == -1:
-        tmp_dict[out_lst[i][2][1]] = 1
-    else:
-        tmp_dict[out_lst[i][2][1]] += 1
-        if tmp_dict[out_lst[i][2][1]] > max_val:
-            max_val = tmp_dict[out_lst[i][2][1]]
-            max_app = out_lst[i][0]
-            max_idx = out_lst[i][2][1]
-print "read app is %s, count:%d, max_idx is %d\n"%(max_app, max_val, max_idx)
-
-
-
-output_arr = extract_array(out_lst)
-
-plot_path = miner_param["dataset_path"]+"sweep_read.pkl" 
-save_fd = open(plot_path, 'wb')
-pickle.dump(output_arr, save_fd, -1)
-#plotDistri(output_arr,  "READ", "10_1000GB", [0]*multiply, 0, is_per_factor)
-##
-#
-#
-##out_tuples.append((stat_row["AppName"], stat_row["FileName"], (job_id, app_id, int(stat_row["nnodes"]), col_enable*100, float(cur_bw), small_io_percent, float(data_size)/1048576/1024, nconsec_io_percent, ost_cnt, proc_ost_level)))
-#
-#
-print "###bad write performance instance:\n"
-out_lst = vectorize_sweepline(stat_table, "WRITE", 4, 10737418240, 1073741824000, 1000, 0, long(1073741824), per_proc_size, is_per_factor)
-print "out_lst length is %d\n"%len(out_lst)
-
-tmp_dict = {}
-max_val = 0
-max_app = ""
-max_idx = -1
-for i in range(0, len(out_lst)):
-    if tmp_dict.get(out_lst[i][2][1], -1) == -1:
-        tmp_dict[out_lst[i][2][1]] = 1
-    else:
-        tmp_dict[out_lst[i][2][1]] += 1
-        if tmp_dict[out_lst[i][2][1]] > max_val:
-            max_val = tmp_dict[out_lst[i][2][1]]
-            max_app = out_lst[i][0]
-            max_idx = out_lst[i][2][1]
-print "write app is %s, count:%d, id :%d\n"%(max_app, max_val, max_idx)
-
-
-output_arr = extract_array(out_lst)
-
-plot_path = miner_param["dataset_path"]+"sweep_write.pkl" 
-save_fd = open(plot_path, 'wb')
-pickle.dump(output_arr, save_fd, -1)
-#plotDistri(output_arr, "WRITE", "10_1000GB", [0]*multiply, 0, is_per_factor)
-#save_fd.close()
-
-
-print "###good read performance instance:\n"
-out_lst = vectorize_sweepline(stat_table, "READ", 4, 10737418240, 1073741824000, 1000, 21474836480, long(10737418240000), per_proc_size, is_per_factor)
-print "out_lst length is %d\n"%len(out_lst)
-output_arr = extract_array(out_lst)
-#plotDistri(output_arr,  "READ", "good10_1000GB", [0]*multiply, 0, is_per_factor, 1)
-tmp_dict = {}
-max_val = 0
-max_app = ""
-for i in range(0, len(out_lst)):
-    if tmp_dict.get(out_lst[i][2][1], -1) == -1:
-        tmp_dict[out_lst[i][2][1]] = 1
-    else:
-        tmp_dict[out_lst[i][2][1]] += 1
-        if tmp_dict[out_lst[i][2][1]] > max_val:
-            max_val = tmp_dict[out_lst[i][2][1]]
-            max_app = out_lst[i][0]
-            max_idx = out_lst[i][2][1]
-print "read app is %s, count:%d, max_idx is %d\n"%(max_app, max_val, max_idx)
-
-
-#plot_path = miner_param["dataset_path"]+"sweep_read_good.pkl" 
-#save_fd = open(plot_path, 'wb')
-#pickle.dump(output_arr, save_fd, -1)
-#
-#
-#
-#
-print "###good write performance instance:\n"
-out_lst = vectorize_sweepline(stat_table, "WRITE", 4, 10737418240, 1073741824000, 1000, 21474836480, long(10737418240000), per_proc_size, is_per_factor)
-print "out_lst length is %d\n"%len(out_lst)
-output_arr = extract_array(out_lst)
-#plotDistri(output_arr, "WRITE", "good10_1000GB", [0]*multiply, 0, is_per_factor, 1)
-plot_path = miner_param["dataset_path"]+"sweep_write_good.pkl" 
-save_fd = open(plot_path, 'wb')
-pickle.dump(output_arr, save_fd, -1)
-
-tmp_dict = {}
-max_val = 0
-max_app = ""
-for i in range(0, len(out_lst)):
-    if tmp_dict.get(out_lst[i][2][1], -1) == -1:
-        tmp_dict[out_lst[i][2][1]] = 1
-    else:
-        tmp_dict[out_lst[i][2][1]] += 1
-        if tmp_dict[out_lst[i][2][1]] > max_val:
-            max_val = tmp_dict[out_lst[i][2][1]]
-            max_app = out_lst[i][0]
-            max_idx = out_lst[i][2][1]
-print "write app is %s, count:%d, max_idx is %d\n"%(max_app, max_val, max_idx)
-
-#plotSeqDist(out_dict["seq"], io_type, 10)
-#plotConsecDist(out_dict["consec"], io_type, 10)
-#plotSmallDist(out_dict["small_io"], io_type, 10)
-#
-#out_dict = {}
-#out_dict = get_app_hist(stat_table)
-#plotAppDist(out_dict)
-#
-#percent_lst = []
-#percent_lst = get_meta_hist(stat_table, 0, 0, 100)
-#
-#plotMetaDist(percent_lst, 10)
-#percent_lst = []
-#percent_lst = get_io_com_hist(stat_table, 0, 0, 100)
-#
-#plotIOCompDist(percent_lst, 10)
-
-
-for io_type in io_types:
-    plot_small_io_hist(stat_table, io_type, fs, plot_dir_lowbw)
-    plot_nonconsec_io_hist(stat_table, io_type, fs, plot_dir_lowbw)
-    plot_bw_size(stat_table, io_type, plot_dir_lowbw)
-    plot_bw_proc(stat_table, io_type, plot_dir_lowbw)
-    reformat_low_factor_table(stat_table, io_type)
 
 per_file_handle.close()

@@ -1,3 +1,4 @@
+import sys
 import datetime
 import time
 import os
@@ -21,17 +22,14 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.ticker import FuncFormatter
 import numpy as np
+sys.path.insert(0, '../data_prep/')
 from construct_low_bw import *
-from analyze_low_bw import *
 from miner_stat import *
-#from slurm_stat import *
-from miner_plot import *
-from analyze_bug import *
 
-#sc = SparkContext.getOrCreate()
-plot_dir="/global/cscratch1/sd/tengwang/latestminer/plots/"
+sc = SparkContext.getOrCreate()
+plot_dir="/global/cscratch1/sd/tengwang/miner1217/plots/"
 cluster_name = "cori"
-miner_param = json.load(open('/global/cscratch1/sd/tengwang/latestminer/miner_para.conf'))
+miner_param = json.load(open('/global/cscratch1/sd/tengwang/miner1217/miner_para.conf'))
 darshan_root = miner_param[cluster_name]["darshan_root"]
 parsed_darshan_root = miner_param[cluster_name]["parsed_darshan_root"]
 cpy_darshan_root = miner_param[cluster_name]["cpy_darshan_root"]
@@ -179,33 +177,27 @@ def form_task_list(out_dir, output_fname_prefix, task_cnt):
     return task_list
 
 print "/global/cscratch1/sd/darshanlogs/2017/9/24/lfu_vasp_std_id6990941_9-24-21080-1482367210173183023_1.darshan".rpartition('/')[2]
-#task_list = form_task_list(miner_param["spark"]["out_dir"], miner_param["spark"]["out_prefix"], 4)
-#parse_spark_files(task_list[2])
+
+# Generate a task list whose elements are dispatched to the Spark tasks. Each element is a list of Darshan logs to be analyzed by one Spark task. The number of Spark tasks is given by export task_count=<task count>)
 task_list = form_task_list(miner_param["spark"]["out_dir"], miner_param["spark"]["out_prefix"], int(os.environ['task_count']))
 
-#start = time.time()
-#tot_cust_cnt = 0
-#tot_cnt = 0
+
+# parse_spark_files calculates the number of jobs that use customized stripe configuration
+log_rdd = sc.parallelize(task_list, numSlices=int(os.environ['task_count'])).map(lambda x:(parse_spark_files(x)))
+for record in log_rdd.collect():
+        print "cust_counter:%d, counter:%d\n"%(record[0],record[1])
+end = time.time()
+print "time is %lf\n"%(end-start)
+
+
+#plot_path = miner_param["dataset_path"]+"spark_file_info.pkl" 
+#tuple_list = []
 #for task in task_list:
-#	(tmp_cust_cnt, tmp_tot_cnt) = parse_spark_files(task)
-#	tot_cust_cnt += tmp_cust_cnt
-#	tot_cnt += tmp_tot_cnt
-
-#log_rdd = sc.parallelize(task_list, numSlices=int(os.environ['task_count'])).map(lambda x:(parse_spark_files(x)))
-#log_rdd = sc.parallelize(task_list, numSlices=int(os.environ['task_count'])).map(lambda x:(parse_spark_files(x)))
-#for record in log_rdd.collect():
-#        print "cust_counter:%d, counter:%d\n"%(record[0],record[1])
-#end = time.time()
-#print "ratio is %lf\n"%(float(tot_cust_cnt)/tot_cnt)
-#print "time is %lf\n"%(end-start)
-plot_path = miner_param["dataset_path"]+"spark_file_info.pkl" 
-tuple_list = []
-for task in task_list:
-	ret_tuple_list = extract_file_counters(task)
-	tuple_list += ret_tuple_list
-
-save_fd = open(plot_path, 'wb')
-pickle.dump(tuple_list, save_fd, -1)
-save_fd.close()
+#	ret_tuple_list = extract_file_counters(task)
+#	tuple_list += ret_tuple_list
+#
+#save_fd = open(plot_path, 'wb')
+#pickle.dump(tuple_list, save_fd, -1)
+#save_fd.close()
 
 per_file_handle.close()

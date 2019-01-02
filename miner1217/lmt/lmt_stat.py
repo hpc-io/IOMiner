@@ -18,7 +18,7 @@ fs_name_map = {
     'scratch3': 'edison_snx11036',
     'cscratch': 'cori_snx11168',
 }
-miner_param = json.load(open('/global/cscratch1/sd/tengwang/latestminer/miner_para.conf'))
+miner_param = json.load(open('/global/cscratch1/sd/tengwang/miner1217/miner_para.conf'))
 
 def convert_to_ts(d):
     ptz = pytz.timezone("US/Pacific")
@@ -108,6 +108,7 @@ def lmt_parse_lst():
     (lmt_read, lmt_read_meta, lmt_write, lmt_write_meta) = lmt_rw_list(start_index, end_index, file_list)
     return (lmt_read, lmt_write)
 
+# extract lmt data between miner_para["start_ts"] and miner_param["end_ts"]
 (lmt_read, lmt_write) = lmt_parse_lst()
 lmt_read = lmt_read * 5
 lmt_write = lmt_write * 5

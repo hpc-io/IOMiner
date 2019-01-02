@@ -9,7 +9,7 @@ from collections import OrderedDict
 from construct_low_bw import *
 from bitmap import *
 
-plot_dir = "/global/cscratch1/sd/tengwang/latestminer/plots/allpkl/"
+plot_dir = "/global/cscratch1/sd/tengwang/miner0810/plots/allpkl/"
 fname = plot_dir + "mpi_prb0_1.pkl"
 file_pos = 0
 
@@ -498,6 +498,7 @@ def vectorize_sweepline(stat_table, io_type, levels, min_data_size, max_data_siz
     job_id = 0
     for stat_row in stat_table:
         app_cnt_flg = 0
+#        print "path is %s\n"%stat_row["FileName"]
 #        print "str_tuple is:%s, 0th:%lf\n"%(str_tuple, stat_row[str_tuple][0][0])
 #        if "gtc" in stat_row["AppName"] and io_type == "WRITE":
 #            continue
@@ -574,9 +575,9 @@ def vectorize_sweepline(stat_table, io_type, levels, min_data_size, max_data_siz
 #        cur_bw = data_size/io_time
         cur_bw = data_size/stat_row[str_tuple][1]
         if cur_bw >= max_bw or cur_bw <= min_bw:
-#            print "bw:%ld"%cur_bw
             continue
-
+        print "cur_bw:%lf, small_cur_bw:%lf, max_bw:%lf, min_bw:%lf\n"%(cur_bw, \
+                cur_bw/1048576, max_bw, min_bw)
 #        print "nprocs:%d, data_size:%ld, cur_bw:%ld\n"%(nprocs, data_size, cur_bw)
 #        proc_ost_ratio = float(nprocs)/ost_cnt 
         proc_ost_ratio = stat_row[str_tuple][0][3]
@@ -595,8 +596,8 @@ def vectorize_sweepline(stat_table, io_type, levels, min_data_size, max_data_siz
         if small_io_percent > 100:
             continue
 
-        if stat_row.get("nnodes", -1) == -1:
-            continue
+#        if stat_row.get("nnodes", -1) == -1:
+#            continue
         consec_io = float(stat_row[str_consec_io])
         consec_io_percent = consec_io / tot_io_cnt * 100
         if consec_io_percent > 100:
@@ -657,194 +658,27 @@ def vectorize_sweepline(stat_table, io_type, levels, min_data_size, max_data_siz
         else:
 #            out_tuples.append((stat_row["AppName"], stat_row["FileName"], (job_id, app_id, col_enable*100, float(cur_bw)/1048576, small_io_percent, float(data_size)/1048576/1024, nconsec_io_percent, ost_cnt, proc_ost_level, proc_ost_ratio)))
             cur_bw = cur_bw/1048576
+#            print "cur_bw is %lf\n"%cur_bw
 #            if cur_bw > 1048576*1024:
 #                cur_bw = float(cur_bw)/1048576/1024
 #            else:
 #                cur_bw = float(cur_bw)/1048576
 #            print "###not per factor\n"            
-            out_tuples.append((stat_row["AppName"], stat_row["FileName"], (job_id, app_id, int(stat_row["nnodes"]), col_enable*100, small_io_percent, float(data_size)/1048576/1024, nconsec_io_percent, ost_cnt, proc_ost_level, cur_bw, proc_ost_ratio)))
+#            out_tuples.append((stat_row["AppName"], stat_row["FileName"], (job_id, app_id, int(stat_row["nnodes"]), col_enable*100, small_io_percent, float(data_size)/1048576/1024, nconsec_io_percent, ost_cnt, proc_ost_level, cur_bw, proc_ost_ratio)))
+            out_tuples.append((stat_row["AppName"], stat_row["FileName"], (job_id, app_id, int(stat_row["nnodes"]), col_enable*100, small_io_percent, float(data_size)/1048576/1024, nconsec_io_percent, ost_cnt, proc_ost_level, cur_bw)))
 #            out_tuples.append((stat_row["AppName"], stat_row["FileName"], (job_id, app_id, col_enable*100, float(cur_bw)/1048576, small_io_percent, float(data_size)/1048576/1024, nconsec_io_percent, ost_cnt, proc_ost_level, proc_ost_ratio)))
 
-    sort_out_tuples = sorted(out_tuples, key = lambda x:(x[2][1], x[2][4], x[2][6]))
+#    sort_out_tuples = sorted(out_tuples, key = lambda x:(x[2][1], x[2][4], x[2][6]))
+    sort_out_tuples = sorted(out_tuples, key = lambda x:(x[2][1], x[2][3], x[2][5]))
     for record in sort_out_tuples:
-        print "###appname:%s, filename:%s, jobid:%d, app_id:%d, small:%d, nconsec:%d, col:%d, ost_cnt:%d, proc_ost_level:%d, proc_ost_ratio:%lf\n"%(record[0], record[1], record[2][0], record[2][1], record[2][4], record[2][6], record[2][3], record[2][7], record[2][8], record[2][10])
+        if "trans" in record[0]:
+            print "###appname:%s, filename:%s, jobid:%d, app_id:%d, small:%d, nconsec:%d, col:%d, ost_cnt:%d, proc_ost_level:%d, bw:%lf\n"%(record[0], record[1], record[2][0], record[2][1], record[2][3], record[2][5], record[2][2], record[2][6], record[2][7], record[2][8])
 #        print "###appname:%s, filename:%s, jobid:%d, app_id:%d, small:%d, nconsec:%d, col:%d, ost_cnt:%d, proc_ost_level:%d, proc_ost_ratio:%lf\n"%(record[0], record[1], record[2][0], record[2][1], record[2][4], record[2][6], record[2][2], record[2][7], record[2][8], record[2][9])
 #    for record in sort_out_tuples:
 #        print "###appname:%s, filename:%s, small:%d, nconsec:%d, col:%d, ost_level:%d, proc_ost_level:%d, proc_cnt:%d, ost_cnt:%d\n"%(record[0], record[1], record[2][0], record[2][1], record[2][2], record[2][3], record[2][4], record[2][5], nprocs, ost_cnt)
 #        print "###appname:%s, filename:%s\n"%(record[0], record[1])
 #        print record[2]
     return out_tuples
-
-
-def vectorize_data(stat_table, io_type, levels, min_data_size, max_data_size, min_proc_cnt, min_bw, max_bw, min_per_proc_size, is_per_factor):
-    out_tuples = []
-    tmp_bitmap = Bitmap(279)
-    str_tot_posix_io = "total_POSIX_%sS"%io_type
-    str_tot_posix_size_0_100 = "total_POSIX_SIZE_%s_0_100"%io_type
-    str_tot_posix_size_100_1K = "total_POSIX_SIZE_%s_100_1K"%io_type
-    str_tot_posix_size_1K_10K = "total_POSIX_SIZE_%s_1K_10K"%io_type
-    str_tot_posix_size_10K_100K = "total_POSIX_SIZE_%s_10K_100K"%io_type
-    str_consec_io = "total_POSIX_CONSEC_%sS"%io_type
-    str_seq_io = "total_POSIX_SEQ_%sS"%io_type
-    str_io_start = "total_POSIX_F_%s_START_TIMESTAMP"%io_type
-    str_io_end = "total_POSIX_F_%s_END_TIMESTAMP"%io_type
-
-    app_dict = {}
-
-    if io_type == "READ":
-        str_io_size = "total_POSIX_BYTES_READ"
-        str_col_vol = "total_MPIIO_COLL_READS"
-    if io_type == "WRITE":
-        str_io_size = "total_POSIX_BYTES_WRITTEN"
-        str_col_vol = "total_MPIIO_COLL_WRITES"
-
-    str_io_time = "total_POSIX_F_%s_TIME"%io_type
-
-    if io_type == "READ":
-        size_key = "total_POSIX_BYTES_READ"
-    if io_type == "WRITE":
-        size_key = "total_POSIX_BYTES_WRITTEN"
-
-
-    col_vol = 0
-    app_cnt = 0
-    app_id = -1
-    job_id = -1
-    for stat_row in stat_table:
-        if app_dict.get(stat_row["AppName"], -1) != -1:
-            app_id = app_dict[stat_row["AppName"]]
-        else:
-            app_cnt = app_cnt + 1
-            app_dict[stat_row["AppName"]] = app_cnt
-            app_id = app_cnt
-
-        if stat_row.get(str_col_vol, -1) != -1:
-            col_vol = long(stat_row[str_col_vol])
-#            print "col_vol:%ld\n"%col_vol
-            if col_vol > 0:
-                col_enable = 1
-            else:
-                col_enable = 0
-        else:
-            col_vol = 0
-            col_enable = 0
-
-        if stat_row.get("ost_map", -1) != -1:
-            tmp_bitmap = stat_row.get("ost_map")
-            ost_cnt = bitmap_counter(tmp_bitmap)
-#            print "ost_cnt is %d\n"%ost_cnt
-
-        if ost_cnt <= 0:
-#            print "app:%s, does not have lustre info\n"%stat_row["FileName"]
-            continue
-
-#        print "app:%s, does contains lustre info\n"%stat_row["FileName"]
-        data_size = float(stat_row[size_key])
-        nprocs = int(stat_row["nprocs"])
-
-        per_proc_size = data_size/nprocs
-        if per_proc_size < min_per_proc_size:
-            continue
-        if nprocs < min_proc_cnt:
-#            print "procs is %d\n"%nprocs
-            continue
-
-        if data_size < min_data_size:
-#            print "data size is %ld\n"%data_size
-            continue
-
-        if data_size > max_data_size:
-            continue
-        base = 1073741824
-        if data_size >= base and data_size < base * 2:
-            data_size_level = 0
-        if data_size >= base * 2 and data_size < base * 4:
-            data_size_level = 1
-        if data_size >= base * 4 and data_size < base * 8:
-            data_size_level = 2
-        if data_size >= base * 8 and data_size < base * 16:
-            data_size_level = 3
-        if data_size >= base * 16 and data_size < base * 100:
-            data_size_level = 4
-        if data_size >= base * 100:
-            data_size_level = 5
-
-        io_start = float(stat_row[str_io_start])
-        io_end = float(stat_row[str_io_end])
-#        io_time = io_end - io_start
-        io_time = float(stat_row[str_io_time])/nprocs
-        cur_bw = data_size/io_time
-        if cur_bw >= max_bw or cur_bw <= min_bw:
-#            print "bw:%ld"%cur_bw
-            continue
-
-#        print "nprocs:%d, data_size:%ld, cur_bw:%ld\n"%(nprocs, data_size, cur_bw)
-        proc_ost_ratio = float(nprocs)/ost_cnt 
-#        print "nprocs:%d, ost_cnt:%d\n"%(nprocs, ost_cnt)
-        per_proc_data = data_size/nprocs;
-        small_io_cnt1= float(stat_row[str_tot_posix_size_0_100])
-        small_io_cnt2 = float(stat_row[str_tot_posix_size_100_1K])
-        small_io_cnt3 = float(stat_row[str_tot_posix_size_1K_10K])
-        small_io_cnt4 = float(stat_row[str_tot_posix_size_10K_100K])
-        tot_io_cnt =  float(stat_row[str_tot_posix_io])
-        if tot_io_cnt <= 0:
-            continue
-        small_io_percent = (small_io_cnt1 + small_io_cnt2 + small_io_cnt3 + small_io_cnt4)/tot_io_cnt;
-        small_io_percent = small_io_percent * 100
-        if small_io_percent > 100:
-            continue
-
-        consec_io = float(stat_row[str_consec_io])
-        consec_io_percent = consec_io / tot_io_cnt * 100
-        if consec_io_percent > 100:
-            continue
-
-        seq_io = float(stat_row[str_seq_io])
-        seq_io_percent = seq_io / tot_io_cnt * 100
-        if seq_io_percent > 100:
-            continue
-        small_io_level = int(small_io_percent/(100/levels))
-#        nonseq_io_level = int((1 - seq_io_percent)/25)
-        nconsec_io_percent = 100 - consec_io_percent
-        nonconsec_io_level = int((100 - consec_io_percent - 0.1)/(100/levels))
-        if ost_cnt == 1:
-            ost_level = 0
-        if ost_cnt > 1 and ost_cnt < 10:
-            ost_level = 1
-        if ost_cnt >= 10 and ost_cnt < 100:
-            ost_level = 2
-        if ost_cnt > 100 and ost_cnt < 1000:
-            ost_level = 3
-
-#        print "ratio is %lf\n"%proc_ost_ratio
-        if proc_ost_ratio > 0 and proc_ost_ratio <= 1:
-            proc_ost_level = 0
-        if proc_ost_ratio > 1 and proc_ost_ratio < 10:
-            proc_ost_level = 1
-        if proc_ost_ratio > 10 and proc_ost_ratio < 100:
-            proc_ost_level = 2
-        if proc_ost_ratio >= 100:
-            proc_ost_level = 3
-        record = stat_row
-        job_id += 1
-#        print "appname:%s, filename:%s, small:%d, nconsec:%d, col:%d, ost_level:%d, proc_ost_level:%d, proc_cnt:%d, ost_cnt:%d\n"%(stat_row["AppName"], stat_row["FileName"], small_io_level, nonconsec_io_level, col_enable, ost_level, proc_ost_level, nprocs, ost_cnt)
-#        print "appname:%s, filename:%s, small:%d, nconsec:%d, col:%d, ost_level:%d, proc_ost_level:%d, proc_cnt:%d, ost_cnt:%d\n"%(stat_row["AppName"], stat_row["FileName"], small_io_percent, nconsec_io_percent, col_enable, ost_level, proc_ost_level, nprocs, ost_cnt)
-
-#        out_tuples.append((stat_row["AppName"], stat_row["FileName"], (app_id, small_io_percent, nconsec_io_percent, col_enable, ost_cnt, proc_ost_ratio)))
-        if is_per_factor == 1:
-            out_tuples.append((stat_row["AppName"], stat_row["FileName"], (job_id, app_id, job_id, col_enable, job_id, float(cur_bw)/1048576, job_id, small_io_percent, job_id, float(data_size)/1048576/1024, job_id, nconsec_io_percent, job_id, ost_cnt, job_id, proc_ost_level)))
-        else:
-            out_tuples.append((stat_row["AppName"], stat_row["FileName"], (job_id, app_id, col_enable, float(cur_bw)/1048576, small_io_percent, float(data_size)/1048576/1024, nconsec_io_percent, ost_cnt, proc_ost_level)))
-
-    sort_out_tuples = sorted(out_tuples, key = lambda x:(x[1], x[2][4],x[2][6]))
-    for record in sort_out_tuples:
-        print "###appname:%s, filename:%s, jobid:%d, app_id:%d, small:%d, nconsec:%d, col:%d, ost_cnt:%d, proc_ost_level:%d, proc_cnt:%d, ost_cnt:%d\n"%(record[0], record[1], record[2][0], record[2][1], record[2][4], record[2][6], record[2][2], record[2][7], record[2][8], nprocs, ost_cnt)
-#    for record in sort_out_tuples:
-#        print "###appname:%s, filename:%s, small:%d, nconsec:%d, col:%d, ost_level:%d, proc_ost_level:%d, proc_cnt:%d, ost_cnt:%d\n"%(record[0], record[1], record[2][0], record[2][1], record[2][2], record[2][3], record[2][4], record[2][5], nprocs, ost_cnt)
-#        print "###appname:%s, filename:%s\n"%(record[0], record[1])
-#        print record[2]
-    return out_tuples
-
 
 #def vectorize_data(stat_table, io_type, levels, min_data_size, min_proc_cnt, min_bw, max_bw):
 #    out_tuples = []
@@ -1149,9 +983,11 @@ def convert_dict_to_plot(out_lst, level):
 #
     return (x_list, x_values, x_show_ticks, x_show_ticks_text, y_list, y_ticks, y_ticks_texts)
 
-def get_io_com_hist(stat_table, proc_cnt, data_size, min_divide):
+def get_io_com_hist(stat_table, proc_cnt, data_size, min_divide, cur_type):
     str_read_start = "total_POSIX_F_READ_START_TIMESTAMP"
     str_read_end = "total_POSIX_F_READ_END_TIMESTAMP"
+    str_read_time = "total_POSIX_F_READ_TIME"
+    str_write_time = "total_POSIX_F_WRITE_TIME"
     str_write_start = "total_POSIX_F_WRITE_START_TIMESTAMP"
     str_write_end = "total_POSIX_F_WRITE_END_TIMESTAMP"
     str_read_size = "total_POSIX_BYTES_READ"
@@ -1159,30 +995,46 @@ def get_io_com_hist(stat_table, proc_cnt, data_size, min_divide):
     str_nprocs = "nprocs"
 
     io_com_ratio_lst = []
+    app_id_ratio_lst = []
+    row_id = -1
     counter = 0
+    tot_job_cnt = 0
+    short_job_cnt = 0
     for stat_row in stat_table:
+        row_id += 1
         tot_size = long(stat_row[str_read_size]) + long(stat_row[str_write_size])
         nprocs = long(stat_row[str_nprocs])
         if data_size != 0 and tot_size < data_size:
             continue
         if nprocs != 0 and nprocs < proc_cnt:
             continue
-        read_start = float(stat_row[str_read_start])
-        read_end = float(stat_row[str_read_end])
-        read_time = read_end - read_start
-#        read_time = float(stat_row["total_POSIX_F_READ_TIME"]) 
-
-        write_start = float(stat_row[str_write_start])
-        write_end = float(stat_row[str_write_end])
-        write_time = write_end - write_start
+        read_time = float(stat_row[str_read_time])
+        write_time = float(stat_row[str_write_time])
 #        write_time = float(stat_row["total_POSIX_F_WRITE_TIME"]) 
         
         str_meta_time = "total_POSIX_F_META_TIME"
         meta_time = float(stat_row[str_meta_time])
-        tot_io_time = long(read_time + write_time + meta_time)
-        tot_time = long(stat_row["end_time"]) - long(stat_row["start_time"]) + 1
+
+        tot_io_time = float(read_time + write_time + meta_time)
+
+        if cur_type == 1:
+            if stat_row.get("POSIX_agg_perf_by_slowest", -1) == -1:
+                continue
+            bw_mb = float(stat_row["POSIX_agg_perf_by_slowest"])
+            if bw_mb <= 0:
+                continue
+            print "bw_mb:%lf\n"%bw_mb
+            tot_io_time = (float(stat_row[str_read_size]) + float(stat_row[str_write_size]))/(bw_mb * 1048576) 
+        tot_time = float(stat_row["nprocs"]) * (float(stat_row["end_time"]) - float(stat_row["start_time"]))
+        if cur_type == 1:
+            tot_time = float(stat_row["end_time"]) - float(stat_row["start_time"])
 #        tot_time = long(stat_row["run time"])
+        if tot_time/float(stat_row["nprocs"]) < 300:
+            short_job_cnt += 1
+            continue
+
         if tot_io_time >= tot_time:
+            print "problematic app is %s\n"%stat_row["FileName"]
             counter = counter + 1
             continue
         if tot_time == 0:
@@ -1194,26 +1046,32 @@ def get_io_com_hist(stat_table, proc_cnt, data_size, min_divide):
         if tot_io_time > tot_time:
 #            print "larger, app:%s,io_ratio:%lf"%(stat_row["FileName"],io_ratio)
             io_ratio = 1
+        tot_job_cnt += 1
         io_com_ratio_lst.append(io_ratio)
+        app_id_ratio_lst.append((row_id, io_ratio))
     io_com_ratio_lst.sort() 
+    app_id_ratio_lst.sort(key = lambda x:x[1])
 
     per_percent = len(io_com_ratio_lst)/min_divide
     low = 0
     high = low + per_percent 
 
-    percent_lst = [0] * min_divide
+    percent_lst = [0] * (min_divide + 1)
+    percent_lst[0] = 0
     for i in range(1, min_divide):
 #        print "seq:io_type:%s, percent:%d\n"%(io_type, seq_percent_lst[low])
-        percent_lst[i - 1] = io_com_ratio_lst[low] 
-        print "io_comp: %dth percent, low is %d, ratio is %d\n"%(i - 1, low, io_com_ratio_lst[low])
+        percent_lst[i] = io_com_ratio_lst[high] 
+        print "io_comp: %dth percent, low is %d, ratio is %d\n"%(i, low, io_com_ratio_lst[high])
 #        print "low is %d, value:%d, per_percent:%d\n"%(low, meta_ratio_lst[low], per_percent)
         low = high
         high = high + per_percent
-    percent_lst[min_divide - 1] = io_com_ratio_lst[len(io_com_ratio_lst) - 1] 
-    print "io_comp: %dth percent, low is %d, ratio is %d\n"%(min_divide - 1, len(io_com_ratio_lst) - 1, io_com_ratio_lst[len(io_com_ratio_lst) - 1])
+    percent_lst[min_divide] = io_com_ratio_lst[len(io_com_ratio_lst) - 1] 
+#    percent_lst[min_divide] = 100 
+    print "last, io_comp: %dth percent, low is %d, ratio is %d\n"%(min_divide, len(io_com_ratio_lst) - 1, 100)
     print "tot_io_time larger than tot_time, there are %d steps\n"%counter
+    print "tot_job_count:%d, small_job_cnt:%d\n"%(tot_job_cnt, short_job_cnt)
 
-    return percent_lst
+    return (percent_lst, app_id_ratio_lst)
 
 
 def get_meta_hist(stat_table, data_size, proc_cnt, min_divide):
@@ -1225,8 +1083,11 @@ def get_meta_hist(stat_table, data_size, proc_cnt, min_divide):
     str_write_size = "total_POSIX_BYTES_WRITTEN"
     str_nprocs = "nprocs"
     
+    app_id_ratio_lst = []
     meta_ratio_lst = []
+    row_id = -1
     for stat_row in stat_table:
+        row_id += 1
         tot_size = long(stat_row[str_read_size]) + long(stat_row[str_write_size])
         nprocs = long(stat_row[str_nprocs])
         if data_size != 0 and tot_size < data_size:
@@ -1251,44 +1112,110 @@ def get_meta_hist(stat_table, data_size, proc_cnt, min_divide):
             continue
 #        print "meta_ratio:%lf, meta_time:%lf, read_time:%lf, write_time:%lf\n"%(meta_ratio, meta_time, read_time, write_time)
         meta_ratio_lst.append(meta_ratio)
+        app_id_ratio_lst.append((row_id, meta_ratio))
+    app_id_ratio_lst.sort(key = lambda x:x[1])
     meta_ratio_lst.sort()
     
     per_percent = len(meta_ratio_lst)/min_divide
     low = 0
     high = low + per_percent 
 
-    percent_lst = [0] * min_divide
+    percent_lst = [0] * (min_divide + 1)
+    percent_lst[0] = 0
     for i in range(1, min_divide):
 #        print "seq:io_type:%s, percent:%d\n"%(io_type, seq_percent_lst[low])
-        percent_lst[i - 1] = meta_ratio_lst[low]
+        percent_lst[i] = meta_ratio_lst[high]
         print "meta_ratio: %dth percent, low is %d, ratio is %d\n"%(i - 1, low, meta_ratio_lst[low])
 #        print "low is %d, value:%d, per_percent:%d\n"%(low, meta_ratio_lst[low], per_percent)
         low = high
         high = high + per_percent
-    percent_lst[min_divide - 1] = meta_ratio_lst[len(meta_ratio_lst) - 1] 
+    percent_lst[min_divide] = meta_ratio_lst[len(meta_ratio_lst) - 1] 
     print "meta_ratio: %dth percent, low is %d, ratio is %d\n"%(min_divide - 1, len(meta_ratio_lst) - 1, meta_ratio_lst[len(meta_ratio_lst) - 1])
 
 #    print "%dth is %ld\n"%(min_divide - 1, read_size_lst[min_divide - 1])
-    return percent_lst
+    return (percent_lst, app_id_ratio_lst)
 
-def get_app_hist(stat_table):
+def labeling_record_by_app(stat_table, app_dict):
+    app_idx = {}
+    appID = 0
+
+    sorted_dict = OrderedDict(sorted(app_dict.items(), key = lambda x:-x[1][0]))
+
+    count_dict = {}
+    cpy_stat_table = []
+    for key, value in sorted_dict.iteritems():
+        if count_dict.get(key, -1) == -1:
+            count_dict[key] = appID
+            appID += 1
+            if appID == 15:
+                break
+
+    for stat_row in stat_table:
+        if count_dict.get(stat_row["AppName"], -1) == -1:
+            continue
+        else:
+            stat_row["AppID"] = count_dict[stat_row["AppName"]]
+            cpy_stat_row = stat_row.copy()
+            cpy_stat_table.append(cpy_stat_row)
+            print "appname:%s, path:%s\n"%(stat_row["AppName"], stat_row["FileName"])
+    sorted_stat = sorted(cpy_stat_table, key = lambda x:x["AppID"])
+    return sorted_stat
+
+
+
+def get_app_hist_all(stat_table):
     app_cnt = 0
     out_dict = {}
+    tot_job_cnt = 0
+    short_job_cnt = 0
     for stat_row in stat_table:
+        tot_time = (float(stat_row["end_time"]) - float(stat_row["start_time"]))
+        if tot_time < 60:
+            short_job_cnt += 1
+            continue
 #        if stat_row["AppName"] == "gamess.01.x" or stat_row["AppName"] == "vasp":
 #            print "app:%s, path:%s, proc_cnt:%s, read:%s, write:%s\n"%(stat_row["AppName"], stat_row["FileName"], stat_row["nprocs"], stat_row["total_POSIX_BYTES_READ"], stat_row["total_POSIX_BYTES_WRITTEN"])
         if out_dict.get(stat_row["AppName"], -1) != -1:
             out_dict[stat_row["AppName"]] = out_dict[stat_row["AppName"]] + 1
         else:
             app_cnt = app_cnt + 1
-            out_dict[stat_row["AppName"]] = 1 
+            out_dict[stat_row["AppName"]] = 1
+        tot_job_cnt += 1
 #            print "appname:%s, file path:%s, log path:%s\n"%(stat_row["AppName"], stat_row["PATH"], \
 #                    stat_row["FileName"])
     sorted_dict = OrderedDict(sorted(out_dict.items(), key = lambda x:x[1]))
+    print "tot_job_cnt:%d, small_job_cnt:%d\n"%(tot_job_cnt, short_job_cnt)
     for key,value in sorted_dict.items():
-        print "appname:%s, count:%d\n"%(key, value)
+        print "appname:%s, count:%d, percent:%lf\n"%(key, value, float(value)/tot_job_cnt)
     return sorted_dict
 
+
+def get_app_cycles(stat_table):
+    app_cnt = 0
+    out_dict = {}
+    tot_cpu_cycles = 0
+    short_job_cnt = 0
+    cpu_cycles = 0
+    tot_job_cnt = 0
+    job_cnt = 0
+    for stat_row in stat_table:
+        tot_job_cnt += 1
+        tot_time = (float(stat_row["end_time"]) - float(stat_row["start_time"]))
+        nprocs = int(stat_row["nprocs"])
+        cpu_cycles = tot_time * nprocs
+        if out_dict.get(stat_row["AppName"], -1) != -1:
+            tmp_tuple = out_dict[stat_row["AppName"]]
+            out_dict[stat_row["AppName"]] = (tmp_tuple[0] + cpu_cycles, tmp_tuple[1] + 1)
+
+        else:
+            out_dict[stat_row["AppName"]] = (0, 0)
+        tot_cpu_cycles += cpu_cycles
+#            print "appname:%s, file path:%s, log path:%s\n"%(stat_row["AppName"], stat_row["PATH"], \
+#                    stat_row["FileName"])
+    sorted_dict = OrderedDict(sorted(out_dict.items(), key = lambda x:-x[1][0]))
+    for key,value in sorted_dict.items():
+        print "appname:%s, cycles:%lf, percent:%lf, count:%ld, count percent:%lf\n"%(key, value[0], float(value[0])/tot_cpu_cycles*100, value[1], float(value[1])/tot_job_cnt)
+    return sorted_dict
 
 def get_io_pat_hist(stat_table, divide):
     out_dict = {}
