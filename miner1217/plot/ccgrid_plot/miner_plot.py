@@ -12,7 +12,7 @@ from distri_plot import *
 
 def plotDistri(data, io_type, low, x_labels):
     print "dimension:%d\n"%len(data)
-    title = "%s_%s.pdf"%(low, io_type)
+    title = "%s_%s.jpg"%(low, io_type)
     style = []
     color_dict = {}
     color_count = 0

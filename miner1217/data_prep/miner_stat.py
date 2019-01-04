@@ -1206,15 +1206,14 @@ def get_app_cycles(stat_table):
         if out_dict.get(stat_row["AppName"], -1) != -1:
             tmp_tuple = out_dict[stat_row["AppName"]]
             out_dict[stat_row["AppName"]] = (tmp_tuple[0] + cpu_cycles, tmp_tuple[1] + 1)
-
         else:
-            out_dict[stat_row["AppName"]] = (0, 0)
+            out_dict[stat_row["AppName"]] = (cpu_cycles, 1)
         tot_cpu_cycles += cpu_cycles
 #            print "appname:%s, file path:%s, log path:%s\n"%(stat_row["AppName"], stat_row["PATH"], \
 #                    stat_row["FileName"])
     sorted_dict = OrderedDict(sorted(out_dict.items(), key = lambda x:-x[1][0]))
     for key,value in sorted_dict.items():
-        print "appname:%s, cycles:%lf, percent:%lf, count:%ld, count percent:%lf\n"%(key, value[0], float(value[0])/tot_cpu_cycles*100, value[1], float(value[1])/tot_job_cnt)
+        print "appname:%s, cycles:%ld, percent:%lf, count:%ld, count percent:%lf\n"%(key, value[0], float(value[0])/tot_cpu_cycles*100, value[1], float(value[1])/tot_job_cnt)
     return sorted_dict
 
 def get_io_pat_hist(stat_table, divide):

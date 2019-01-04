@@ -1,3 +1,4 @@
+#This file reuse most of the code from Sunggon
 import sys 
 sys.path.append('/global/cscratch1/sd/tengwang/pytokio_set/pytokio')
 
@@ -21,9 +22,14 @@ import datetime
 import subprocess
 import scandir
 
-#os.chdir("/global/u2/s/sgkim/codes/darshan_code_skim/")
+#hardcoded parameters:
+# /global/cscratch1/sd/tengwang/pytokio_set/pytokio path of pytokio directory
+# root_dir: directory of iominer
+# dir: the directory of parsed Darshan (e.g. .total and .all files)
 
-# This file builds a table that contains the records of all the Darshan logs stored under "dir" given below. Each log corresponds to a record in the table, this record contains the LMT information associated with the log. The table is stored under "lmt_dir" given below. LMT information include: 
+#os.chdir("/global/u2/s/sgkim/codes/darshan_code_skim/")
+root_dir="/global/cscratch1/sd/tengwang/miner1217/lmt_dir/"
+# This file builds a table that contains the records of all the Darshan logs stored (lmt_info_<month>_<day>.log) under root_dir. Each log corresponds to a record in the table, this record contains the LMT information associated with the log. The table is stored under "root_dir". LMT information include: 
 #ossCPUMin: Minimum CPU utilization of OSSs used by the job 5-second before it starts
 #ossCPUMax: Maximum CPU utilization of OSSs used by the job 5-second before it starts
 #ossCPUAve: Average CPU utilization of OSSs used by the job 5-second before it starts
@@ -31,7 +37,9 @@ import scandir
 #ostIOMax = Max IO on OSTs used by the job 5-second before it starts
 #ostIOAve = Average IO on OSTs used by the job 5-second before it starts
 #mdsCPUAve: Average CPU utilization of metadata servers used by the job 5-second before it starts
-dir = "/global/cscratch1/sd/tengwang/miner0612/parsed_darshan/2017/"
+
+# the path of parsed Darshan files
+dir = "/global/cscratch1/sd/tengwang/miner1217/parsed_darshan/2017/"
 
 
 def process(glbDict, file, mdsCPU, ossCPU, ostIO):
@@ -353,7 +361,7 @@ for dirs in scandir.scandir(dir):
 			main_start = datetime.datetime.now()
 		
 
-                        tmp_str = "lmt_dir/lmt_info_%d_%d.log"%(month, day)
+                        tmp_str = root_dir+"/lmt_info_%d_%d.log"%(month, day)
                         save_fd = open(tmp_str, 'wb')
                         glb_tab = []
 			#a = 0

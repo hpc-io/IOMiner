@@ -25,13 +25,23 @@ sys.path.append('../slurm')
 from miner_stat import *
 from slurm_stat import *
 
+# miner_para is the path of the json configuration file
+# cori is the entry defined in "miner_para.conf"
+# root_dir is the iominer's top directory
+# darshan_root is the location of the darshan logs, defined in miner_para.conf as darshan_root
+# parsed_darshan_root is the location to store the parsed Darshan files by iominer, defined in miner_para.conf as parsed_darshan_root (under cori)
+# cpy_darshan_root is the location that stores the copied Darshan files from darshan_root, defined in miner_para.conf as cpy_darshan_root
+# bigtable_log is the location of the constructed Darshan bigtable.
+# per_file_log is the path of the file that stores all the per-file counters parsed by iominer. If this file does not exist, you can create a file by touch <path of per_file_log>
+# miner_param["start_ts"], miner_para["end_ts"] define the start time and end time of the analyzed logs
+
 cluster_name = "cori"
 root_dir="/global/cscratch1/sd/tengwang/miner1217/"
 miner_param = json.load(open('/global/cscratch1/sd/tengwang/miner1217/miner_para.conf'))
 darshan_root = miner_param[cluster_name]["darshan_root"]
 parsed_darshan_root = miner_param[cluster_name]["parsed_darshan_root"]
 cpy_darshan_root = miner_param[cluster_name]["cpy_darshan_root"]
-cpy_darshan_root = "/global/cscratch1/sd/darshanlogs/" 
+#cpy_darshan_root = "/global/cscratch1/sd/darshanlogs/" 
 format_darshan_root = miner_param[cluster_name]["format_darshan_root"]
 per_file_log = miner_param[cluster_name]["per_file_log"]
 bigtable_log = miner_param[cluster_name]["bigtable_log"]
@@ -348,14 +358,13 @@ def cpy_darshan_files(darshan_root, cpy_darshan_root, start_time, end_time):
                 save_cpy_output(my_file, cpy_darshan_dir)
 #        rdd2 = rdd.filter(lambda x:not x[1]).map(lambda x:save_cpy_output(x[0], cpy_darshan_dir))
 
-print "/global/cscratch1/sd/darshanlogs/2017/9/24/lfu_vasp_std_id6990941_9-24-21080-1482367210173183023_1.darshan".rpartition('/')[2]
 
 # copy darshan files produced during start_ts and end_ts to the directory given by cpy_darshan_root
 
 cpy_darshan_files(darshan_root, cpy_darshan_root, start_ts, \
         end_ts)
 
-# parse the darshan files into text format, two types of logs are generated, one is .total and one is .all. Refer to Darshan page for understanding these two types. 
+# parse the darshan files into text format, two types of logs are generated, one is .total and one is .all. Refer to Darshan page for understanding these two types (darshan-parser --total, and darshan-parser --all). 
 
 get_parsed_list(cpy_darshan_root, parsed_darshan_root, start_ts, end_ts, ext = 'all', decompressed_darshan_dir = "", version=3)
 get_parsed_list(cpy_darshan_root, parsed_darshan_root, start_ts, end_ts, ext = 'total', decompressed_darshan_dir = "", version=3)
@@ -367,10 +376,10 @@ get_parsed_list(cpy_darshan_root, parsed_darshan_root, start_ts, end_ts, ext = '
 format_parsed_files(parsed_darshan_root, format_darshan_root, start_ts, end_ts)
 
 stat_table = construct_bigtable(format_darshan_root, start_ts, end_ts, "formated_tot_stat.pkl")
-   
-# extract application name from the file name of each log, and attach it to each record.
+
+# inline application name with each record, the application name is extracted from the filename of the log. An alternative way is to get the application name by "exe" counter in the Darshan log. 
 new_stat_table = covert_app_name(stat_table)
-#tmp_str = bigtable_log+"_"+"formated_tot_stat_adv.pkl"+".log"
+tmp_str = bigtable_log+"_"+"formated_tot_stat_adv.pkl"+".log"
 save_fd = open(tmp_str, 'wb')
 pickle.dump(new_stat_table, save_fd, -1)
 save_fd.close()
@@ -382,30 +391,69 @@ stat_table = pickle.load(save_fd)
 save_fd.close()
 
 
-# retrieve_slurm_files reads the SLURM table that contains one record for each job. The followed script combines the SLURM records with the records of bigtable_log_formated_tot_stat_adv.pkl.log. Note: SLURM table needs to be constructed before calling retrieve_slurm_files by the scripts slurm_stat.py under slurm/ 
+# retrieve_slurm_files reads the SLURM table that contains one record for each job. The followed script combines the SLURM records with the records of bigtable_log_formated_tot_stat_adv.pkl.log. Note: SLURM table needs to be constructed before calling retrieve_slurm_files by the scripts slurm_stat.py under slurm/. If there is no such table constructed, please set slurm_table = {}. This script will automatically extract nnode count by sacct 
 
-slurm_table = retrieve_slurm_files(miner_param["slurm_job_dir"])
-
+#slurm_table = retrieve_slurm_files(miner_param["slurm_job_dir"])
+slurm_table = {}
 darshan_counter = 0
 darshan_slurm_counter = 0
-#
+one_job = 0
+one_job_rest = 0
+noinfo = 0
 slurm_dict = {}
 for record in stat_table:
-    darshan_counter += 1
-    print "job id is %s, darshan_counter:%d, darshan_slurm_counter:%d\n"%(record["JobID"], darshan_counter, darshan_slurm_counter)
-    if (slurm_table.get(record["JobID"], -1) != -1):
-        darshan_slurm_counter += 1
-        value = slurm_table.get(record["JobID"])
-        print "job id is %s in slurm\n"%record["JobID"]
-        for tmp_dict in value:
-            if "batch" not in tmp_dict["JobID"] and "extern" not in tmp_dict["JobID"]:
-                record["nnodes"] = tmp_dict["AllocNodes"] 
-                record["cpus"] = tmp_dict["AllocCPUS"] 
-                slurm_dict[record["JobID"]] = {}
-                slurm_dict[record["JobID"]]["nnodes"] = record["nnodes"]
-                slurm_dict[record["JobID"]]["cpus"] = record["cpus"]
-#
-#print "######darshan_counter:%d, darshan_slurm_counter:%d\n"%(darshan_counter, darshan_slurm_counter)
+        darshan_counter += 1
+        if slurm_table.get(record["JobID"], -1) == -1:
+            cmd = "sacct -j " + str(record["JobID"]) + " --format=ntasks,ncpus,nnodes"
+            tempOut =  subprocess.check_output(cmd, shell=True)
+            tempOut = tempOut.strip()
+            tempOut = tempOut.split(" ")
+            temp = []
+            for i in tempOut:
+                if i.isdigit():
+                    temp.append(i)
+            numTasks = int(temp[len(temp) - 3])
+            numCPU = int(temp[len(temp) - 2])
+            numNode = int(temp[len(temp) - 1])
+	    record["nnodes"] = numNode
+	    record["cpus"] = numCPU
+            record["ntasks"] = numTasks
+            slurm_dict[record["JobID"]] = {}
+            slurm_dict[record["JobID"]]["nnodes"] = str(numNode)
+            slurm_dict[record["JobID"]]["cpus"] = str(numCPU)
+            slurm_dict[record["JobID"]]["ntasks"] = str(numTasks)
+            if numTasks == 1:
+                one_job += 1
+                one_job_rest += 1
+            print "unfound job id is %s, darshan_counter:%d, darshan_slurm_counter:%d, cpu count is %d, node count is %d\n"%(record["JobID"], darshan_counter, darshan_slurm_counter, numCPU, numNode)
+
+	if (slurm_table.get(record["JobID"], -1) != -1):
+                darshan_slurm_counter += 1
+		value = slurm_table.get(record["JobID"])
+		print "job id is %s in slurm\n"%record["JobID"]
+		for tmp_dict in value:
+			if "batch" not in tmp_dict["JobID"] and "extern" not in tmp_dict["JobID"]:
+				record["nnodes"] = tmp_dict["AllocNodes"] 
+				record["cpus"] = tmp_dict["AllocCPUS"]
+                                record["ntasks"] = tmp_dict["NTasks"]
+                                sub_value = tmp_dict["NTasks"]
+                                if sub_value != "":
+                                    idx = sub_value.find('K')
+                                    if idx != -1:
+                                        ntasks = float(sub_value[0:idx]) * 1000
+                                        ntasks = int(ntasks)
+                                    else:
+                                        ntasks = int(sub_value)
+                                    if ntasks == 1:
+                                        one_job += 1
+                                else:
+                                    noinfo += 1
+
+                                slurm_dict[record["JobID"]] = {}
+                                slurm_dict[record["JobID"]]["nnodes"] = record["nnodes"]
+                                slurm_dict[record["JobID"]]["cpus"] = record["cpus"]
+                                slurm_dict[record["JobID"]]["ntasks"] = record["ntasks"]
+
 tmp_str = bigtable_log+"_"+"formated_tot_stat_adv.pkl"+".log"
 save_fd = open(tmp_str, 'wb')
 pickle.dump(stat_table, save_fd, -1)

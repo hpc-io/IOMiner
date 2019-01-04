@@ -35,6 +35,14 @@ class Bitmap(object):
         for i in range(0, self.size):
             self.array[i] = self.array[i] & other.array[i]
 
+def bitmap_counter(tmp_bitmap):
+#    print "bitmap size:%d"%tmp_bitmap.size
+    cnt = 0
+    for i in range(0, 248):
+        if tmp_bitmap.test(i):
+            cnt = cnt + 1
+#            print "###cnt%d\n"%(cnt)
+    return cnt
 #bitmap = Bitmap(90)
 #print "element count is %d\n"%(bitmap.size)
 #print "62 is on %dth elem\n"%bitmap.calcElemIndex(0)

@@ -1,5 +1,6 @@
 
 import numpy as np
+import pandas as pd
 import sys
 import datetime
 import time
@@ -26,8 +27,20 @@ sys.path.insert(0, '../../data_prep/')
 sys.path.insert(0, '../../plot/')
 from construct_low_bw import *
 from miner_stat import *
-#from slurm_stat import *
 #from miner_plot import *
+#from slurm_stat import *
+
+def plotFullBWCorrMatrix(bw_matrix):
+#    print bw_matrix
+    plt.gcf().clear()
+    title = "bw_corr"
+    df = pd.DataFrame(data=bw_matrix)
+    print df.corr()
+    plt.matshow(df.corr())
+    plt.xticks(range(len(df.columns)), df.columns)
+    plt.yticks(range(len(df.columns)), df.columns)
+    plt.colorbar()
+    plt.savefig(title+'.jpg', format = 'jpg', bbox_inches='tight')
 
 root_dir="/global/cscratch1/sd/tengwang/miner1217/"
 cluster_name = "cori"

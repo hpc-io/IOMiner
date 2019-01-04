@@ -260,4 +260,6 @@ def get_utilization_dist(slurm_table):
 #print_slurm_info(slurm_table)
 
 # calculate the CPU coverage of Slurm logs
+# get_slurm_hours(slurm_table)
+
 #(sorted_has_lst, sorted_knl_lst) = get_utilization_dist(slurm_table)

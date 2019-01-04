@@ -363,6 +363,10 @@ def print_record_info(record, per_file_handle):
 
     return ost_cnt
 
+def extendAdditionalInfo(stat_table, per_file_handle):
+    for record in stat_table:
+        print_record_info(record, per_file_handle)
+    return stat_table
 # for each log file, extract its 'total counters' (e.g., total_POSIX_BYTES_WRITTEN), and store the key-value pairs in out_dict. Then for each file accessed in the job, store its counters in per_file_dict (e.g. per_file_dict[<filename>][key] = value). all out_dict of all jobs are stored in one log file, all per_file_dict of all jobs are stored in another log file. EXTERNAL_FILE_OFFSET and EXTERNAL_FILE_LENGTH in out_dict points to the region of the job's corresponding per_file_dict in another log.  
 def getStatTable(fname, tmpFname, path_tuple, f_handle):
     out_dict = {}
@@ -370,6 +374,8 @@ def getStatTable(fname, tmpFname, path_tuple, f_handle):
     suffix = fname.rsplit('/')[-1]
     out_dict["FileName"] = fname
 
+    ost_cnt = 0
+    tmp_bm = Bitmap(279)
     jobID = parse_darshan_jobid(suffix)
     out_dict["JobID"] = jobID
 
@@ -507,6 +513,7 @@ def getStatTable(fname, tmpFname, path_tuple, f_handle):
 
                         if "LUSTRE_STRIPE_WIDTH" in per_file_key:
                             flag = 1
+                            ost_cnt += int(per_file_dict[file_name][per_file_key])
                         if "LUSTRE_STRIPE_SIZE" in per_file_key:
                             flag = 1
                         if "LUSTRE_OST_ID" in per_file_key:
@@ -526,10 +533,12 @@ def getStatTable(fname, tmpFname, path_tuple, f_handle):
                     if per_file_dict[file_name].get("OST_MAP", -1) == -1:
                         bitmap = Bitmap(279)
                         bitmap.set(int(real_ost_id))
+                        tmp_bm.set(int(real_ost_id))
                         per_file_dict[file_name]["OST_MAP"] = bitmap
                     else:
                         bitmap = per_file_dict[file_name]["OST_MAP"]
                         bitmap.set(int(real_ost_id))
+                        tmp_bm.set(int(real_ost_id))
                         per_file_dict[file_name]["OST_MAP"] = bitmap
                     del per_file_dict[file_name][per_file_key]
 
@@ -594,6 +603,8 @@ def getStatTable(fname, tmpFname, path_tuple, f_handle):
 
     out_dict["PATH"] = path_tuple[0]
     out_dict["FS"] = path_tuple[1]
+    out_dict["ost_map"] = tmp_bm
+    out_dict["tot_ost_cnt"] = ost_cnt
 
     serialize_obj = pickle.dumps(per_file_dict);
     global file_pos
