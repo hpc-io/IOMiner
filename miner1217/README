@@ -31,7 +31,7 @@ Code structure:
 			- batch_sweep_analyze_mul.py
 				-- utility for extract_contri_arg.py
 			- app_analyze.py
-				-- generate the data source for drawing the parallel coorindate plot of each application	
+				-- generate the data source for drawing the parallel coordinate plot of each application	
 		- statistics
 			- statistics.py
 				-- calculate some common statistics, such as finding the top N IO-intensive applications, number of jobs using different I/O techniques (e.g. POSIX, MPI-IO, etc)
