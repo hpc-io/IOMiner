@@ -14,9 +14,12 @@ IO, and how the system administrators could architect their storage system for b
 bandwidth utilization. 
 
 The current release includes its core sweepline analysis component that allows HPC users to 
-quickly identify the IO bottleneck of their applications. It takes in a job's Darshan log, 
-and delivers multiple useful IO analysis and visualization results that guide users to 
-find out this job's key IO bottlenecks, including:
+quickly identify the IO bottleneck of their applications (iominer_sweepline.py), and also
+a batch darshan parser that parses all the darshan logs under a specified directory
+into a darshan human readable format, and stores them in a target directory. 
+
+iominer_sweepline.py takes in a job's Darshan log, and delivers multiple useful 
+IO analysis and visualization results that guide users to find out this job's key IO bottlenecks, including:
 
 1. Visualization of the IO timing on all the files written/read by all the processes in a job. 
 Each HPC job typically contains multiple processes (a.k.a, MPI ranks), and each rank can write/read
@@ -38,7 +41,7 @@ competing processes on this file, etc.
 6. Distribution of the IO size, number of competing processes on each OST used by the job.
 
 
-Usage:
+Usage of iominer_sweepline.py:
 ===============================================================================
 python iominer_sweepline.py --darshan <Darshan log path>
 
@@ -214,6 +217,28 @@ The stars in the figure are the OSTs that host those files in the IO covering se
 <executable_ds_distr.pdf>: the distribution of IO size among processes
 
 <executable_file_cnt.pdf>: the distribution of accessed file count among processes
+
+
+Usage of batch_darshan_parser.py:
+===============================================================================
+python ./batch_darshan_parser.py <start date> <end date> <the directory that contains accumulated original Darshan logs> <the directory that contains parsed darshan logs> --thread_count=<number of threads used for parsing, default 1>
+
+Example:
+python ./batch_darshan_parser.py 2019-01-01 2019-01-31 /sample/compressed_darshan /sample/decompressed_darshan --thread_count=2
+/sample/compressed_darshan/
+	-- /sample/compressed_darshan/2019/1/1/a.darshan
+	...
+	-- /sample/compressed_darshan/2019/1/31/b.darshan
+
+output:
+/sample/decompressed_darshan/2019/1/1/a.total (the parsed file by darshan-parser --total)
+/sample/decompressed_darshan/2019/1/1/a.all (the parsed file by darshan-parser --all)
+...
+/sample/decompressed_darshan/2019/1/31/b.all
+/sample/decompressed_darshan/2019/1/31/b.total
+
+
+
 
 
 References
