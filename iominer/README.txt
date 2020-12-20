@@ -17,8 +17,8 @@ The current release includes its core sweepline analysis component that allows H
 quickly identify the IO bottleneck of their applications (iominer_sweepline.py),
 a batch darshan parser (batch_darshan_parser.py) that parses all the darshan logs under a specified directory
 into a darshan human readable format, and stores them in a target directory, and 
-a batch darshan formater (construct_darshan_map.py) that extracts all the parsed darshan logs and
-stores them into pandas dataframe, then persists the dataframe on the disk. 
+a batch darshan formater (construct_darshan_map.py) that extracts all the counters from
+the parsed darshan logs and stores them into pandas dataframe, then persists the dataframe on the disk. 
 
 iominer_sweepline.py takes in a job's Darshan log, and delivers multiple useful 
 IO analysis and visualization results that guide users to find out this job's key IO bottlenecks, including:
