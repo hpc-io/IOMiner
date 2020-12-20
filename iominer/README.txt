@@ -14,9 +14,11 @@ IO, and how the system administrators could architect their storage system for b
 bandwidth utilization. 
 
 The current release includes its core sweepline analysis component that allows HPC users to 
-quickly identify the IO bottleneck of their applications (iominer_sweepline.py), and also
-a batch darshan parser that parses all the darshan logs under a specified directory
-into a darshan human readable format, and stores them in a target directory. 
+quickly identify the IO bottleneck of their applications (iominer_sweepline.py),
+a batch darshan parser (batch_darshan_parser.py) that parses all the darshan logs under a specified directory
+into a darshan human readable format, and stores them in a target directory, and 
+a batch darshan formater (construct_darshan_map.py) that extracts all the parsed darshan logs and
+stores them into pandas dataframe, then persists the dataframe on the disk. 
 
 iominer_sweepline.py takes in a job's Darshan log, and delivers multiple useful 
 IO analysis and visualization results that guide users to find out this job's key IO bottlenecks, including:
@@ -226,7 +228,9 @@ python ./batch_darshan_parser.py <start date> <end date> <the directory that con
 Example:
 python ./batch_darshan_parser.py 2019-01-01 2019-01-31 /sample/compressed_darshan /sample/decompressed_darshan --thread_count=2
 /sample/compressed_darshan/
-	-- /sample/compressed_darshan/2019/1/1/a.darshan
+
+Input directory structure:
+  -- /sample/compressed_darshan/2019/1/1/a.darshan
 	...
 	-- /sample/compressed_darshan/2019/1/31/b.darshan
 
@@ -236,6 +240,27 @@ output:
 ...
 /sample/decompressed_darshan/2019/1/31/b.all
 /sample/decompressed_darshan/2019/1/31/b.total
+
+
+Usage of construct_darshan_map.py 
+=============================================================================
+
+Example:
+python ./construct_darshan_map.py 2018-10-1 2018-11-30 /sample/decompressed_darshan /sample/format_darshan --thread_count 2
+
+Input directory structure:
+    /sample/decompressed_darshan/2019/1/1/a.all (the parsed file by darshan-parser --all)
+    ...
+    /sample/decompressed_darshan/2019/1/31/b.all (the pased file by darshan-parser --all)
+
+output:
+    /sample/decompressed_darshan/2019/1/1/tot_stat.pkl (the file containing the job-level counters for all jobs under this directory)
+    /sample/decompressed_darshan/2019/1/1/perfile_stat.log (the file containing the file-level counters for all the files of the jobs under this directory)
+
+    /sample/decompressed_darshan/2019/1/31/tot_stat.pkl
+    /sample/decompressed_darshan/2019/1/31/perfile_stat.log
+
+
 
 
 
