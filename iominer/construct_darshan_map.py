@@ -33,13 +33,12 @@ import pandas as pd
 import multiprocessing
 from multiprocessing import Manager
 
+reset_log = False
 DARSHAN_FILE_PATTERN = '(\S+)_id(\d+)_\d+-\d+-(\S+).darshan'
 darshan_file_pattern = re.compile(DARSHAN_FILE_PATTERN)
 
 VERSION_PATTERN = '(#\s+)(darshan log version):\s+(\d+(?:\.\d+)?)'
 darshan_version_pattern = re.compile(VERSION_PATTERN)
-file_pos = 0
-darshan_df = pd.DataFrame()
 def GetDarshanJobId(s):
     DARSHAN_FILE_PATTERN = '(\S+)_id(\d+)_\d+-\d+-(\S+).darshan'
     darshan_file_pattern = re.compile(DARSHAN_FILE_PATTERN)
@@ -52,30 +51,68 @@ def GetDarshanJobId(s):
 def FormatFileList(format_darshan_dir, file_list):
     print("processing file directory %s, pid:%d\n"%(format_darshan_dir, os.getpid()))
     sys.stdout.flush()
-    tot_stat_file_name = format_darshan_dir + "tot_stat.pkl"
-    tot_fd = open(tot_stat_file_name, 'wb')
-        
-    perfile_stat_file_name = format_darshan_dir + "perfile_stat.log"
+    tot_stat_file_name = format_darshan_dir + "perjob_stat3.log"
+    perfile_stat_file_name = format_darshan_dir + "perfile_stat3.log"
+    meta_stat_file_name = format_darshan_dir + "meta_stat3.log"
+
+    if reset_log:
+        try:
+            os.remove(tot_stat_file_name)
+        except OSError:
+            pass
+        try:
+            os.remove(perfile_stat_file_name)
+        except OSError:
+            pass
+        try:
+            os.remove(meta_stat_file_name)
+        except OSError:
+            pass
+
     perfile_fd = open(perfile_stat_file_name, 'wb')
-    darshan_df = pd.DataFrame()
+    perjob_fd = open(tot_stat_file_name, 'wb')
+    meta_fd = open(meta_stat_file_name, 'a+')
+
+    
+    META_PATTERN = '([^:]+):([0-9]+):([0-9]+),([0-9]+):([0-9]+)'
+    meta_pat = re.compile(META_PATTERN)
+    counter = 0
+    job_dict = set()
+
+    with open(meta_stat_file_name) as tmp_fp:
+        line = tmp_fp.readline()
+        while line:
+            line = tmp_fp.readline()
+            match = meta_pat.match(line)
+
+            if match:
+                job_id = match.group(1)
+                if not job_id:
+                    counter += 1
+                else:
+                    job_dict.add(job_id)
+            else:
+                counter += 1
+
     counter = 0
     for fname in file_list:
-        job_key = FormStatDict(fname, darshan_df, tot_fd, perfile_fd)
+        job_key = FormStatDict(fname, perjob_fd, perfile_fd, meta_fd, job_dict)
         if job_key == -1:
             counter += 1
-        if "darshan_version" in darshan_df.columns:
+        # if "darshan_version" in darshan_df.columns:
         #    print("######fname:%s, darshan_version:%s"%(fname, darshan_df.loc[job_key, "darshan_version"]))
-            try:
-                if not pd.isnull(darshan_df.loc[job_key, "darshan_version"]):
-                    if float(darshan_df.loc[job_key, "darshan_version"]) < 3.1:
-                        # print("fname:%sdarshan_version:%s"%(fname, darshan_df.loc[job_key, "darshan_version"]))
-                        continue;
-            except:
-                print("file format error %s, darshan format:%s\n"%(fname, darshan_df.loc[job_key, "darshan_version"]))
+        #    try:
+        #        if not pd.isnull(darshan_df.loc[job_key, "darshan_version"]):
+        #            if float(darshan_df.loc[job_key, "darshan_version"]) < 3.1:
+        #                print("fname:%sdarshan_version:%s"%(fname, darshan_df.loc[job_key, "darshan_version"]))
+        #                continue;
+        #    except:
+        #        print("file format error %s, darshan format:%s\n"%(fname, darshan_df.loc[job_key, "darshan_version"]))
 
-    pickle.dump(darshan_df, tot_fd, -1)
-    tot_fd.close()
+#    pickle.dump(darshan_df, tot_fd, -1)
+    perjob_fd.close()
     perfile_fd.close()
+    meta_fd.close()
     return counter
 
     
@@ -93,7 +130,6 @@ def FormatParsedFiles(parsed_darshan_root,
     results = []
     while d <= end_date:
         parsed_darshan_files = parsed_darshan_root + d.strftime("%Y/%-m/%-d/*.darshan.all")
-        print("parsed file is %s\n"%parsed_darshan_files)
         sys.stdout.flush()
         format_darshan_dir = format_darshan_root + d.strftime("%Y/%-m/%-d/")
         if not os.path.exists(format_darshan_dir):
@@ -136,10 +172,13 @@ def GetDarshanVersion(s):
     else:
         return None
         
-def FormStatDict(darshan_fname, darshan_df, tot_fd, perfile_fd):
-    print("darshan_fname:%s"%darshan_fname)
+def FormStatDict(darshan_fname, perjob_fd, perfile_fd, meta_fd, job_dict):
+    if darshan_fname in job_dict:
+        print("darshan_fname is already parsed:%s"%darshan_fname)
+        return 0
     sys.stdout.flush()
     suffix = darshan_fname.rsplit('/')[-1]
+    print("darshan_fname:%s"%darshan_fname)
     
     DARSHAN_FILE_PATTERN = '(\S+)_id(\d+)_\d+-\d+-(\S+).darshan'
     darshan_file_pattern = re.compile(DARSHAN_FILE_PATTERN)
@@ -148,7 +187,9 @@ def FormStatDict(darshan_fname, darshan_df, tot_fd, perfile_fd):
         job_id = match.group(2)
     else:
         return -1
+
     
+    darshan_df = pd.DataFrame()
     darshan_file_df = pd.DataFrame()
     darshan_df.loc[job_id, "file_name"] = darshan_fname
 
@@ -384,14 +425,21 @@ def FormStatDict(darshan_fname, darshan_df, tot_fd, perfile_fd):
                 darshan_file_df.loc[file_name, "nprocs"] = nprocs
                # print "###path:%s, matched file is %s, nprocs is %s\n"%(out_dict["FileName"], file_name, nprocs)
 
-    serialize_obj = pickle.dumps(darshan_file_df);
+    serialize_perfile_obj = pickle.dumps(darshan_file_df);
+    serialize_perjob_obj = pickle.dumps(darshan_df);
+
+    last_perfile_pos = perfile_fd.tell()
+    last_perjob_pos = perjob_fd.tell()
+    last_metafile_pos = meta_fd.tell()
     
-    global file_pos
-    perfile_fd.seek(file_pos)
-    perfile_fd.write(serialize_obj)
-    darshan_df.loc[job_id, "EXTERNAL_FILE_OFFSET"] = str(file_pos);
-    darshan_df.loc[job_id, "EXTERNAL_FILE_LENGTH"] = str(len(serialize_obj))
-    file_pos += len(serialize_obj)
+    perfile_fd.seek(last_perfile_pos)
+    perjob_fd.seek(last_perjob_pos)
+    meta_fd.seek(last_metafile_pos)
+
+    perfile_fd.write(serialize_perfile_obj)
+    perjob_fd.write(serialize_perjob_obj)
+    meta_str = "%s:%d:%d,%d:%d\n"%(darshan_fname, last_perjob_pos, len(serialize_perjob_obj), last_perfile_pos, len(serialize_perfile_obj))
+    meta_fd.write(meta_str)
 #    job_key = str(darshan_df.loc[job_id, "start_time"]) + "#" +  str(job_id)
 #    print("job key is %s\n"%job_key)
 #    print("darshan name here1:%s, version:%s\n"%(darshan_fname, darshan_df.loc[job_id, "darshan_version"]))
@@ -423,6 +471,7 @@ cmd_parser.add_argument("end_date", help = "end date in the format of y-m-d")
 cmd_parser.add_argument("src_dir", help = "top directory of parsed Darshan log")
 cmd_parser.add_argument("dst_dir", help = "top directory of formatted Darshan")
 cmd_parser.add_argument("--thread_count", default=1, type=int, help = "number of parser threads")
+cmd_parser.add_argument("--reset", help = "whether to truncate the existing log", action = 'store_true')
 args = cmd_parser.parse_args()
 
 start_date = str(args.start_date)
@@ -432,6 +481,8 @@ start_date += " 00:00:00"
 end_date += " 23:59:59"
 src_darshan_dir = args.src_dir
 dst_darshan_dir = args.dst_dir
+
+reset_log = args.reset
 
 NTHREADS = args.thread_count
 if src_darshan_dir[len(src_darshan_dir) - 2] != '/':

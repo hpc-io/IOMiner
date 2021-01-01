@@ -246,7 +246,9 @@ Usage of construct_darshan_map.py
 =============================================================================
 
 Example:
-python ./construct_darshan_map.py 2018-10-1 2018-11-30 /sample/decompressed_darshan /sample/format_darshan --thread_count 2
+python ./construct_darshan_map.py 2018-10-1 2018-11-30 /sample/decompressed_darshan /sample/format_darshan --thread_count 2 <--reset>
+
+reset: specifies we want to clear the previous logs. Without using reset, we will skip the already parsed jobs when we run this script multiple times.
 
 Input directory structure:
     /sample/decompressed_darshan/2019/1/1/a.all (the parsed file by darshan-parser --all)
@@ -254,11 +256,16 @@ Input directory structure:
     /sample/decompressed_darshan/2019/1/31/b.all (the pased file by darshan-parser --all)
 
 output:
-    /sample/decompressed_darshan/2019/1/1/tot_stat.pkl (the file containing the job-level counters for all jobs under this directory)
-    /sample/decompressed_darshan/2019/1/1/perfile_stat.log (the file containing the file-level counters for all the files of the jobs under this directory)
-
-    /sample/decompressed_darshan/2019/1/31/tot_stat.pkl
+    /sample/decompressed_darshan/2019/1/1/perjob_stat.log (the file containing the job-level counters for all jobs under this directory, each job is a pandas dataframe serialized as an object by pickle)
+    /sample/decompressed_darshan/2019/1/1/perfile_stat.log (the file containing the file-level counters for all the files of the jobs under this directory, the files of each job are stored in one pandas dataframe, serailized as an object by pickle)
+    /sample/decompressed_darshan/2019/1/1/meta_stat.log (the metadata file that contains the offset and length of each serialized object in perjob_stat.log and perfile_stat.log)
+		...
+    /sample/decompressed_darshan/2019/1/31/perjob_stat.log
     /sample/decompressed_darshan/2019/1/31/perfile_stat.log
+    /sample/decompressed_darshan/2019/1/31/meta_stat.log
+
+		meta_stat.log format:
+			<darshanfilename>:<offset for job1's pickle object in perjob_stat.log>:<length for job1's pickle object in per_job_stat.log>,<offset for job1's pickle object in perfile_stat.log>:<length for job1's pickle object in perfile_stat.log>
 
 
 
