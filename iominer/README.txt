@@ -18,7 +18,7 @@ quickly identify the IO bottleneck of their applications (iominer_sweepline.py),
 a batch darshan parser (batch_darshan_parser.py) that parses all the darshan logs under a specified directory
 into a darshan human readable format, and stores them in a target directory, and 
 a batch darshan formater (construct_darshan_map.py) that extracts all the counters from
-the parsed darshan logs and stores them into pandas dataframe, then persists the dataframe on the disk. 
+the parsed darshan logs and stores them into pandas dataframe, then persists the dataframe on the disk and a pandas dataframe constructor (gen_df_for_periods.py) that concatenates all the results from construct_darshan_map.py for a specified periods into a single dataframe, and persists it into the disk. 
 
 iominer_sweepline.py takes in a job's Darshan log, and delivers multiple useful 
 IO analysis and visualization results that guide users to find out this job's key IO bottlenecks, including:
@@ -246,29 +246,41 @@ Usage of construct_darshan_map.py
 =============================================================================
 
 Example:
-python ./construct_darshan_map.py 2018-10-1 2018-11-30 /sample/decompressed_darshan /sample/format_darshan --thread_count 2 <--reset>
+python ./construct_darshan_map.py 2019-1-1 2019-1-1 /sample/decompressed_darshan /sample/format_darshan --thread_count 2 <--reset>
 
 reset: specifies we want to clear the previous logs. Without using reset, we will skip the already parsed jobs when we run this script multiple times.
 
 Input directory structure:
     /sample/decompressed_darshan/2019/1/1/a.all (the parsed file by darshan-parser --all)
     ...
-    /sample/decompressed_darshan/2019/1/31/b.all (the pased file by darshan-parser --all)
+    /sample/decompressed_darshan/2019/1/1/b.all (the pased file by darshan-parser --all)
 
 output:
     /sample/decompressed_darshan/2019/1/1/perjob_stat.log (the file containing the job-level counters for all jobs under this directory, each job is a pandas dataframe serialized as an object by pickle)
     /sample/decompressed_darshan/2019/1/1/perfile_stat.log (the file containing the file-level counters for all the files of the jobs under this directory, the files of each job are stored in one pandas dataframe, serailized as an object by pickle)
     /sample/decompressed_darshan/2019/1/1/meta_stat.log (the metadata file that contains the offset and length of each serialized object in perjob_stat.log and perfile_stat.log)
 		...
-    /sample/decompressed_darshan/2019/1/31/perjob_stat.log
-    /sample/decompressed_darshan/2019/1/31/perfile_stat.log
-    /sample/decompressed_darshan/2019/1/31/meta_stat.log
+    /sample/decompressed_darshan/2019/1/1/perjob_stat.log
+    /sample/decompressed_darshan/2019/1/1/perfile_stat.log
+    /sample/decompressed_darshan/2019/1/1/meta_stat.log
 
 		meta_stat.log format:
 			<darshanfilename>:<offset for job1's pickle object in perjob_stat.log>:<length for job1's pickle object in per_job_stat.log>,<offset for job1's pickle object in perfile_stat.log>:<length for job1's pickle object in perfile_stat.log>
 
+Usage of gen_df_for_periods.py 
+=============================================================================
+Example:
+python ./gen_pandas_for_period.py 2019-01-01 2019-01-01 /sample/format_darshan  --thread_count 8 
 
 
+Input directory structure:
+    /sample/decompressed_darshan/2019/1/1/perjob_stat.log
+    /sample/decompressed_darshan/2019/1/1/perfile_stat.log
+    ...
+    /sample/decompressed_darshan/2019/1/1/meta_stat.log 
+
+output:
+    /sample/decompressed_darshan/darshan_state_<starttime>_<endtime>: serialized pandas dataframe, which can be deserialized using pickle
 
 
 
