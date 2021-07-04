@@ -15,10 +15,15 @@ bandwidth utilization.
 
 The current release includes its core sweepline analysis component that allows HPC users to 
 quickly identify the IO bottleneck of their applications (iominer_sweepline.py),
+a batch copy tool (batch_copy_darsh_lmt.py) that copies the darshan and lmt logs in a
+specified period from the global directory to the user specified directory,
 a batch darshan parser (batch_darshan_parser.py) that parses all the darshan logs under a specified directory
 into a darshan human readable format, and stores them in a target directory, and 
 a batch darshan formater (construct_darshan_map.py) that extracts all the counters from
-the parsed darshan logs and stores them into pandas dataframe, then persists the dataframe on the disk and a pandas dataframe constructor (gen_df_for_periods.py) that concatenates all the results from construct_darshan_map.py for a specified periods into a single dataframe, and persists it into the disk. 
+the parsed darshan logs and stores them into pandas dataframe, then persists the dataframe on the disk,
+a pandas dataframe constructor (gen_df_for_periods.py) that concatenates all the results from construct_darshan_map.py for a specified periods 
+into a single dataframe, and persists it into the disk, as well as parallel_coordinate_plot.py that contains functions 
+for clustering io metrics based on parallel coordiante plot. 
 
 iominer_sweepline.py takes in a job's Darshan log, and delivers multiple useful 
 IO analysis and visualization results that guide users to find out this job's key IO bottlenecks, including:
@@ -220,6 +225,23 @@ The stars in the figure are the OSTs that host those files in the IO covering se
 
 <executable_file_cnt.pdf>: the distribution of accessed file count among processes
 
+Usage of batch_copy_darsh_lmt.py:
+===============================================================================
+python ./batch_copy_darsh_lmt.py <start date> <end date> <the directory that contains lmt/darshan logs> <the directory to copy the logs to> --thread_count=<thread count> --repl_type=<lmt|darshan>
+python ./batch_copy_darsh_lmt.py 2020-01-01 2020-02-01 /sample/src_lmt_dir /sample/dst_lmt_dir --thread_count=1 --repl_type=lmt
+
+
+Input directory structure:
+  -- /sample/src_lmt_dir/2019-1-1/a
+	...
+	-- /sample/src_lmt_dir/2010-2-1/b
+
+output:
+...
+  -- /sample/dst_lmt_dir/2019-1-1/a
+	...
+	-- /sample/dst_lmt_dir/2010-2-1/b
+  
 
 Usage of batch_darshan_parser.py:
 ===============================================================================
