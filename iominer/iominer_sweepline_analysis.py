@@ -1204,14 +1204,19 @@ def ExtractContriFactors(ds_rank_stat_dict, ds_glb_dict,\
         
 # calculate the number of files, number of IO requests, and the IO size of each rank
 def PlotRankDataDistr(ds_rank_stat_dict, subtitle):
-    rank_stat = [dict() for x in ds_rank_stat_dict.items()]
+
+    max_rank = -1
+    for cur_rank, file_info in ds_rank_stat_dict.items():
+        if cur_rank > max_rank:
+            max_rank = cur_rank
+
+    rank_stat = [dict() for x in range(0, max_rank + 1)]
     rank_stat.append(dict())
 
     rank_size_lst = []
     rank_label_lst = []
     
     for cur_rank, file_info in ds_rank_stat_dict.items():
-        # print ("cur_rank is %d, size is %d\n"%(cur_rank, len(ds_rank_stat_dict.items())))
         rank_stat[cur_rank]["file_count"] = len(ds_rank_stat_dict[cur_rank].items())
         
         rank_io_size = 0
@@ -1304,10 +1309,17 @@ def PlotRankDataDistr(ds_rank_stat_dict, subtitle):
 
 # calculate the number of files, number of IO requests, and the IO size of each rank
 def PlotReqCntDistr(ds_rank_stat_dict, subtitle):
-    rank_stat = [dict() for x in ds_rank_stat_dict.items()]
-    rank_stat.append(dict())
+
+    max_rank = -1
+    for cur_rank, file_info in ds_rank_stat_dict.items():
+        if cur_rank > max_rank:
+            max_rank = cur_rank
+
     rank_cnt_lst = []
     rank_label_lst = []
+
+    rank_stat = [dict() for x in range(0, max_rank + 1)]
+    rank_stat.append(dict())
     
     for cur_rank, file_info in ds_rank_stat_dict.items():
         # print ("cur_rank is %d, size is %d\n"%(cur_rank, len(ds_rank_stat_dict.items())))
@@ -1400,7 +1412,13 @@ def PlotReqCntDistr(ds_rank_stat_dict, subtitle):
 
 # calculate the number of files, number of IO requests, and the IO size of each rank
 def PlotFileCntDistr(ds_rank_stat_dict, subtitle):
-    rank_stat = [dict() for x in ds_rank_stat_dict.items()]
+   
+    max_rank = -1
+    for cur_rank, file_info in ds_rank_stat_dict.items():
+        if cur_rank > max_rank:
+            max_rank = cur_rank
+   
+    rank_stat = [dict() for x in range(0, max_rank + 1)]
     rank_filecnt_lst = []
     rank_label_lst = []
     
@@ -1540,18 +1558,18 @@ def CalOSTSizeDistri(ost_lst, per_file_dict, ds_rank_stat_dict):
                 stripe_size = int(per_file_dict[file_name]["LUSTRE_STRIPE_SIZE"])
                 stripe_width = int(per_file_dict[file_name]["LUSTRE_STRIPE_WIDTH"])
                 if per_file_dict[file_name].get("POSIX_BYTES_WRITTEN", -1) != -1:
-                    pos_write_size = int(per_file_dict[file_name]["POSIX_BYTES_WRITTEN"])
-                    pos_read_size = int(per_file_dict[file_name]["POSIX_BYTES_READ"])
-                    pos_max_write = int(per_file_dict[file_name]["POSIX_MAX_BYTE_WRITTEN"])
+                    pos_write_size = int(float(per_file_dict[file_name]["POSIX_BYTES_WRITTEN"]))
+                    pos_read_size = int(float(per_file_dict[file_name]["POSIX_BYTES_READ"]))
+                    pos_max_write = int(float(per_file_dict[file_name]["POSIX_MAX_BYTE_WRITTEN"]))
                 else:
                     pos_write_size = 0
                     pos_read_size = 0
                     pos_max_write = 0
                     
                 if per_file_dict[file_name].get("STDIO_BYTES_WRITTEN", -1) != -1:
-                    std_write_size = int(per_file_dict[file_name]["STDIO_BYTES_WRITTEN"])
-                    std_read_size = int(per_file_dict[file_name]["STDIO_BYTES_READ"])
-                    std_max_write = int(per_file_dict[file_name]["STDIO_MAX_BYTE_WRITTEN"])
+                    std_write_size = int(float(per_file_dict[file_name]["STDIO_BYTES_WRITTEN"]))
+                    std_read_size = int(float(per_file_dict[file_name]["STDIO_BYTES_READ"]))
+                    std_max_write = int(float(per_file_dict[file_name]["STDIO_MAX_BYTE_WRITTEN"]))
                 else:
                     std_write_size = 0
                     std_read_size = 0
@@ -1565,7 +1583,7 @@ def CalOSTSizeDistri(ost_lst, per_file_dict, ds_rank_stat_dict):
                 print("#####filename:%s#####\n"%file_name)
                       
                 if per_file_dict[file_name].get("nprocs", -1) != -1:
-                    nprocs = int(per_file_dict[file_name]["nprocs"])
+                    nprocs = int(float(per_file_dict[file_name]["nprocs"]))
                 else:
                     nprocs = GetProcCnt(ds_rank_stat_dict, file_name)
                 
@@ -1742,7 +1760,7 @@ def IsOutputSaved(
 def SaveParserOutput(
         darshan_log, 
         filename):
-    
+   
     with open(filename, 'wb') as target:
         ret_val = subprocess.call(['darshan-parser', 
                                    '--all', 
@@ -1771,7 +1789,7 @@ except:
     print("Fail to open log file %s\n"%log_file)
     exit(1)
 
-if extension == "darshan":
+if extension == ".darshan":
     parsed_darshan_log = "./"+darshan_log.rpartition('/')[2]+'.all'
     ret_val = SaveParserOutput(darshan_log, parsed_darshan_log)
     if ret_val < 0:
