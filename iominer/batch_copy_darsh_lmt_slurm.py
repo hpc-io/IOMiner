@@ -45,6 +45,35 @@ def save_cpy_output(darshan_log, cpy_darshan_dir):
     ret = subprocess.call(cmd, shell=True)
     return ret
 
+def repl_slurm_dir(dst_slurm_dir,\
+                   start_time,\
+                       end_time):
+    cmd = ['sacct','--allusers','--parsable',
+        '--starttime=' + start_time,
+        '--endtime=' + end_time,
+        '--state=CD',
+        '--format=JobID%20,User%15,jobname%50,Start%22,End%22,Elapsed%20,State%20,AllocNodes,Ntasks,\
+        AllocCPUs,ReqCPUS,SystemCPU%15,UserCPU%15,TotalCPU%16,\
+        AveCPU%15,MinCPU%15,MinCPUNode,MinCPUTask,\
+        AveVMSize%15,MaxVMSize%15,MaxVMSizeNode,MaxVMSizeTask,\
+        AveRSS%15,MaxRSS%15,MaxRSSNode,MaxRSSTask,\
+        AvePages%20,MaxPages%20,MaxPagesNode,MaxPagesTask,\
+        AllocTRES%20,ReqTRES%20,AveCPUFreq, ReqCPUFreqMin, ReqCPUFreqMax, ReqCPUFreqGov,\
+        ConsumedEnergy,Layout,Partition%10,ExitCode%10,NodeList%600']
+        
+    start_date = datetime.strptime(start_time, "%m/%d/%y-%H:%M:%S" )
+    end_date = datetime.strptime(end_time, "%m/%d/%y-%H:%M:%S")
+    fmt_start_date = start_date.strftime("%m/%d/%y-%H:%M:%S")
+    fmt_end_date = end_date.strftime("%m/%d/%y-%H:%M:%S")
+    
+    fname = dst_slurm_dir + "/slurm_%d_%d.log"%(datetime.timestamp(start_date), datetime.timestamp(end_date))
+    ret = 0
+    with open(fname, "w") as outfile:
+        ret = subprocess.call(cmd, stdout=outfile)
+    
+    if (ret != 0):
+        print("fail to process slurm command\n")
+        return -1
 
 def repl_darshan_dir(src_darshan_dir, dst_darshan_dir,\
                       start_time,\
@@ -156,9 +185,11 @@ end_date = str(args.end_date)
 #print("type is %s\n"%args.repl_type)
 if args.repl_type == "lmt":
     is_repl_lmt = True
-else:
+    is_repl_slurm = False
+elif args.repl_type == "slurm":
     is_repl_lmt = False
-
+    is_repl_slurm = True
+    
 start_date += " 00:00:00"
 end_date += " 23:59:59"
 src_dir = args.src_dir
@@ -169,11 +200,14 @@ if src_dir[len(src_dir) - 2] != '/':
     src_dir = src_dir + '/'
 if dst_dir[len(dst_dir) - 2] != '/':
     dst_dir = dst_dir + '/'
-start_date_arr = time.strptime(start_date, "%Y-%m-%d %H:%M:%S")
-int_start_date = int(time.mktime(start_date_arr))
 
-end_date_arr = time.strptime(end_date, "%Y-%m-%d %H:%M:%S")
-int_end_date = int(time.mktime(end_date_arr))
+start_date_arr = datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
+int_start_date = int(datetime.timestamp(start_date_arr))
+str_start_time = start_date_arr.strftime("%m/%d/%y-%H:%M:%S")
+
+end_date_arr = datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S")
+int_end_date = int(datetime.timestamp(end_date_arr))
+str_end_time = end_date_arr.strftime("%m/%d/%y-%H:%M:%S")
 
 NTHREADS = multiprocessing.cpu_count()
 processes = multiprocessing.Pool(NTHREADS)
@@ -182,10 +216,15 @@ if is_repl_lmt:
     repl_lmt_dir(src_dir, dst_dir,\
                      int_start_date,\
                          int_end_date)
+elif is_repl_slurm:
+    repl_slurm_dir(dst_dir,\
+                      str_start_time, \
+                         str_end_time)
 else:
     repl_darshan_dir(src_dir, dst_dir,\
                  int_start_date,\
                      int_end_date)
 
 processes.close()
+
 processes.join()
