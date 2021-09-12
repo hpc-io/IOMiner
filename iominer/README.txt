@@ -15,14 +15,16 @@ bandwidth utilization.
 
 The current release includes its core sweepline analysis component that allows HPC users to 
 quickly identify the IO bottleneck of their applications (iominer_sweepline.py),
-a batch copy tool (batch_copy_darsh_lmt.py) that copies the darshan and lmt logs in a
-specified period from the global directory to the user specified directory,
+a batch copy tool (batch_copy_darsh_lmt_slurm.py) that copies the darshan, lmt, slurm logs in a
+specified period from the global directory or database to the user specified directory,
 a batch darshan parser (batch_darshan_parser.py) that parses all the darshan logs under a specified directory
 into a darshan human readable format, and stores them in a target directory, and 
 a batch darshan formater (construct_darshan_map.py) that extracts all the counters from
 the parsed darshan logs and stores them into pandas dataframe, then persists the dataframe on the disk,
-a pandas dataframe constructor (gen_df_for_periods.py) that concatenates all the results from construct_darshan_map.py for a specified periods 
-into a single dataframe, and persists it into the disk, as well as parallel_coordinate_plot.py that contains functions 
+a pandas dataframe constructor (gen_pandas_for_darsh.py) that concatenates all the results from construct_darshan_map.py for a specified periods 
+into a single dataframe, and persists it into the disk, a slurm dataframe constructor (gen_pandas_for_slurm.py) that
+takes in the result from batch_copy_darsh_lmt_slurm.py, and format slurm counters into
+pandas format indexed by jobid, as well as parallel_coordinate_plot.py that contains functions 
 for clustering io metrics based on parallel coordiante plot. 
 
 iominer_sweepline.py takes in a job's Darshan log, and delivers multiple useful 
@@ -225,10 +227,10 @@ The stars in the figure are the OSTs that host those files in the IO covering se
 
 <executable_file_cnt.pdf>: the distribution of accessed file count among processes
 
-Usage of batch_copy_darsh_lmt.py:
+Usage of batch_copy_darsh_lmt_slurm.py:
 ===============================================================================
-python ./batch_copy_darsh_lmt.py <start date> <end date> <the directory that contains lmt/darshan logs> <the directory to copy the logs to> --thread_count=<thread count> --repl_type=<lmt|darshan>
-python ./batch_copy_darsh_lmt.py 2020-01-01 2020-02-01 /sample/src_lmt_dir /sample/dst_lmt_dir --thread_count=1 --repl_type=lmt
+python ./batch_copy_darsh_lmt_slurm.py <start date> <end date> <the directory that contains lmt/darshan logs> <the directory to copy the logs to> --thread_count=<thread count> --repl_type=<lmt|darshan>
+python ./batch_copy_darsh_lmt_slurm.py 2020-01-01 2020-02-01 /sample/src_lmt_dir /sample/dst_lmt_dir --thread_count=1 --repl_type=lmt
 
 
 Input directory structure:
@@ -245,10 +247,10 @@ output:
 
 Usage of batch_darshan_parser.py:
 ===============================================================================
-python ./batch_darshan_parser.py <start date> <end date> <the directory that contains accumulated original Darshan logs> <the directory that contains parsed darshan logs> --thread_count=<number of threads used for parsing, default 1>
+python ./batch_darshan_parser.py <start date> <end date> <the directory that contains accumulated original Darshan logs> <the directory that contains parsed darshan logs> --thread_count=<number of threads used for parsing, default 1> [--all specifies whether or not we wat to generate .all file as well, which contain per-file darshan statistics]
 
 Example:
-python ./batch_darshan_parser.py 2019-01-01 2019-01-31 /sample/compressed_darshan /sample/decompressed_darshan --thread_count=2
+python ./batch_darshan_parser.py 2019-01-01 2019-01-31 /sample/compressed_darshan /sample/decompressed_darshan --thread_count=2 --all
 /sample/compressed_darshan/
 
 Input directory structure:
@@ -289,10 +291,10 @@ output:
 		meta_stat.log format:
 			<darshanfilename>:<offset for job1's pickle object in perjob_stat.log>:<length for job1's pickle object in per_job_stat.log>,<offset for job1's pickle object in perfile_stat.log>:<length for job1's pickle object in perfile_stat.log>
 
-Usage of gen_df_for_periods.py 
+Usage of gen_pandas_for_darsh.py 
 =============================================================================
 Example:
-python ./gen_pandas_for_period.py 2019-01-01 2019-01-01 /sample/format_darshan  --thread_count 8 
+python ./gen_pandas_for_darsh.py 2019-01-01 2019-01-01 /sample/format_darshan  --thread_count 8 
 
 
 Input directory structure:
@@ -303,6 +305,20 @@ Input directory structure:
 
 output:
     /sample/decompressed_darshan/darshan_state_<starttime>_<endtime>: serialized pandas dataframe, which can be deserialized using pickle
+
+Usage of gen_pandas_for_darsh.py 
+=============================================================================
+Example:
+python ./gen_pandas_for_darsh.py 2019-01-01 2019-01-01 /sample/raw_slurm /sample/slurm_pandas 
+Input directory structure:
+/sample/raw_slurm/
+
+
+Input directory structure:
+/sample/raw_slurm/slurm_<start_timestamp>_<end_timestamp>.log
+
+output:
+/sample/slurm_pandas/slurm_pd_<start_timestamp>_<end_timestamp>
 
 
 
