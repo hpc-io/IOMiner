@@ -24,7 +24,8 @@ the parsed darshan logs and stores them into pandas dataframe, then persists the
 a pandas dataframe constructor (gen_pandas_for_darsh.py) that concatenates all the results from construct_darshan_map.py for a specified periods 
 into a single dataframe, and persists it into the disk, a slurm dataframe constructor (gen_pandas_for_slurm.py) that
 takes in the result from batch_copy_darsh_lmt_slurm.py, and format slurm counters into
-pandas format indexed by jobid, as well as parallel_coordinate_plot.py that contains functions 
+pandas format indexed by jobid, gen_pandas_for_lmt.py that generates the lmt dataframe for
+LMT statistics, as well as parallel_coordinate_plot.py that contains functions 
 for clustering io metrics based on parallel coordiante plot. 
 
 iominer_sweepline.py takes in a job's Darshan log, and delivers multiple useful 
@@ -268,9 +269,10 @@ output:
 
 Usage of construct_darshan_map.py 
 =============================================================================
+python ./construct_darshan_map.py <start_date> <end_date> <the directory containing all the parsed darshans>  <the output of formatted darshan> --thread_count <thread count> [--reset: whether we want to continue from the leftover since last run or we want to reset] <--all: whether we only parsed the .total darshan files or both .total and .all darshan files, specifiying --all will parse both the .total and .all files>
 
 Example:
-python ./construct_darshan_map.py 2019-1-1 2019-1-1 /sample/decompressed_darshan /sample/format_darshan --thread_count 2 <--reset>
+python ./construct_darshan_map.py 2019-1-1 2019-1-1 /sample/decompressed_darshan /sample/format_darshan --thread_count 2 --reset --all
 
 reset: specifies we want to clear the previous logs. Without using reset, we will skip the already parsed jobs when we run this script multiple times.
 
@@ -320,6 +322,20 @@ Input directory structure:
 output:
 /sample/slurm_pandas/slurm_pd_<start_timestamp>_<end_timestamp>
 
+Usage of gen_pandas_for_lmt.py 
+============================================================================
+python ./gen_pandas_for_lmt.py <start_timestamp> <end_timestamp> <path of pytokio>  <lmt output path>  2>&1|tee info_2017.log
+
+Example:
+python ./gen_lmt_for_periods.py 2017-8-1 2017-10-31 /cscratch/pytokio  /global/parsed_lmt 
+
+output:
+/global/parsed_lmt/lmt_state_1501570800_1509519599
+
+This file is a pickle dump of a python dictionary, you can extract the lmt logs by
+loading the dictionary using pickle, and reference the metadata server workload,
+oss workload, and ost read/write workload by dict["mdsCPU"], dict["ossCPU"],
+dict["ostRead"] and dict["ostWrite"], respectively.
 
 
 

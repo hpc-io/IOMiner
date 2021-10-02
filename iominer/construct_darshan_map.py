@@ -49,7 +49,7 @@ def GetDarshanJobId(s):
         return "0"
 
 def FormatFileList(format_darshan_dir, file_list):
-    print("processing file directory %s, pid:%d\n"%(format_darshan_dir, os.getpid()))
+    print("processing file directory %s, pid:%d, sizeof file list:%d\n"%(format_darshan_dir, os.getpid(), len(file_list)))
     sys.stdout.flush()
     tot_stat_file_name = format_darshan_dir + "perjob_stat3.log"
     perfile_stat_file_name = format_darshan_dir + "perfile_stat3.log"
@@ -69,8 +69,8 @@ def FormatFileList(format_darshan_dir, file_list):
         except OSError:
             pass
 
-    perfile_fd = open(perfile_stat_file_name, 'wb')
-    perjob_fd = open(tot_stat_file_name, 'wb')
+    perfile_fd = open(perfile_stat_file_name, 'ab+')
+    perjob_fd = open(tot_stat_file_name, 'ab+')
     meta_fd = open(meta_stat_file_name, 'a+')
 
     
@@ -96,6 +96,7 @@ def FormatFileList(format_darshan_dir, file_list):
 
     counter = 0
     for fname in file_list:
+#        print("here fname is %s\n"%fname)
         job_key = FormStatDict(fname, perjob_fd, perfile_fd, meta_fd, job_dict)
         if job_key == -1:
             counter += 1
@@ -120,7 +121,8 @@ def FormatFileList(format_darshan_dir, file_list):
 def FormatParsedFiles(parsed_darshan_root, 
                       format_darshan_root, 
                       start_time, 
-                      end_time):
+                      end_time,
+                      parse_all):
     start_date = datetime.fromtimestamp(start_time)
     end_date = datetime.fromtimestamp(end_time)
     d = datetime(start_date.year,start_date.month,start_date.day)
@@ -128,8 +130,12 @@ def FormatParsedFiles(parsed_darshan_root,
     file_list = []
     zip_file_list = []
     results = []
+    if parse_all:
+        str_time = "%Y/%-m/%-d/*.darshan.all"
+    else:
+        str_time = "%Y/%-m/%-d/*.darshan.total"
     while d <= end_date:
-        parsed_darshan_files = parsed_darshan_root + d.strftime("%Y/%-m/%-d/*.darshan.all")
+        parsed_darshan_files = parsed_darshan_root + d.strftime(str_time)
         sys.stdout.flush()
         format_darshan_dir = format_darshan_root + d.strftime("%Y/%-m/%-d/")
         if not os.path.exists(format_darshan_dir):
@@ -142,6 +148,7 @@ def FormatParsedFiles(parsed_darshan_root,
                     pass
                 else:
                     raise
+        print("parsed darshan files is %s\n"%parsed_darshan_files)
         file_list = glob.glob(parsed_darshan_files)
         d += delta
 
@@ -178,7 +185,7 @@ def FormStatDict(darshan_fname, perjob_fd, perfile_fd, meta_fd, job_dict):
         return 0
     sys.stdout.flush()
     suffix = darshan_fname.rsplit('/')[-1]
-    print("darshan_fname:%s"%darshan_fname)
+#    print("darshan_fname:%s"%darshan_fname)
     
     DARSHAN_FILE_PATTERN = '(\S+)_id(\d+)_\d+-\d+-(\S+).darshan'
     darshan_file_pattern = re.compile(DARSHAN_FILE_PATTERN)
@@ -201,39 +208,42 @@ def FormStatDict(darshan_fname, perjob_fd, perfile_fd, meta_fd, job_dict):
     
     version_time = 0
     with open(darshan_fname) as infile:
-        for line in infile:
-            VERSION_PATTERN = '(#\s+)(darshan log version):\s+(\d+(?:\.\d+)?)'
-            darshan_version_pattern = re.compile(VERSION_PATTERN)
-            version_match = darshan_version_pattern.match(line)
-            if version_match is not None:
-                counter_val = version_match.group(3)
-                darshan_df.loc[job_id, "darshan_version"] = counter_val
-#                print("darshan name here:%s, version:%s\n"%(darshan_fname, counter_val))
-            
-            HEADER_PATTERN = '(#\s+)(\S+):(\s+)(\d+)'
-            header_pattern = re.compile(HEADER_PATTERN)
-            header_match = header_pattern.match(line)
-            if header_match is not None:
-                counter_key = header_match.group(2)
-                counter_val = header_match.group(4)
-                darshan_df.loc[job_id, counter_key] = counter_val
-    #            print "key:%s, val:%s\n"%(counter_key, counter_val)
-            KEY_VALUE_PATTERN = '(\S+):(\s+)([+-]?\d+(?:\.\d+)?)'
-            kv_pattern = re.compile(KEY_VALUE_PATTERN)
-            kv_match = kv_pattern.match(line)
-            if kv_match is not None:
-                counter_key = kv_match.group(1)
-#                counter_val = float(kv_match.group(3))
-                counter_val = kv_match.group(3)
-#                if cmp(counter_key.strip(), "total_POSIX_OPENS"):
-#                    out_open_count = counter_val
-#                if cmp(counter_key.strip(), "total_POSIX_READS"):
-#                    out_read_count = counter_val
-#                if cmp(counter_key.strip(), "total_POSIX_WRITES"):
-#                    out_write_count = counter_val
-#                if cmp(counter_key.strip(), "total_POSIX_WRITES"):
-#                    out_write_count = counter_val
-                darshan_df.loc[job_id, counter_key] = counter_val
+        try:
+            for line in infile:
+                VERSION_PATTERN = '(#\s+)(darshan log version):\s+(\d+(?:\.\d+)?)'
+                darshan_version_pattern = re.compile(VERSION_PATTERN)
+                version_match = darshan_version_pattern.match(line)
+                if version_match is not None:
+                    counter_val = version_match.group(3)
+                    darshan_df.loc[job_id, "darshan_version"] = counter_val
+    #                print("darshan name here:%s, version:%s\n"%(darshan_fname, counter_val))
+                
+                HEADER_PATTERN = '(#\s+)(\S+):(\s+)(\d+)'
+                header_pattern = re.compile(HEADER_PATTERN)
+                header_match = header_pattern.match(line)
+                if header_match is not None:
+                    counter_key = header_match.group(2)
+                    counter_val = header_match.group(4)
+                    darshan_df.loc[job_id, counter_key] = counter_val
+        #            print "key:%s, val:%s\n"%(counter_key, counter_val)
+                KEY_VALUE_PATTERN = '(\S+):(\s+)([+-]?\d+(?:\.\d+)?)'
+                kv_pattern = re.compile(KEY_VALUE_PATTERN)
+                kv_match = kv_pattern.match(line)
+                if kv_match is not None:
+                    counter_key = kv_match.group(1)
+    #                counter_val = float(kv_match.group(3))
+                    counter_val = kv_match.group(3)
+    #                if cmp(counter_key.strip(), "total_POSIX_OPENS"):
+    #                    out_open_count = counter_val
+    #                if cmp(counter_key.strip(), "total_POSIX_READS"):
+    #                    out_read_count = counter_val
+    #                if cmp(counter_key.strip(), "total_POSIX_WRITES"):
+    #                    out_write_count = counter_val
+    #                if cmp(counter_key.strip(), "total_POSIX_WRITES"):
+    #                    out_write_count = counter_val
+                    darshan_df.loc[job_id, counter_key] = counter_val
+        except:
+            print("wrong file format:%s\n"%darshan_fname)
 
 
      # unique: 0 0 0
@@ -472,6 +482,7 @@ cmd_parser.add_argument("src_dir", help = "top directory of parsed Darshan log")
 cmd_parser.add_argument("dst_dir", help = "top directory of formatted Darshan")
 cmd_parser.add_argument("--thread_count", default=1, type=int, help = "number of parser threads")
 cmd_parser.add_argument("--reset", help = "whether to truncate the existing log", action = 'store_true')
+cmd_parser.add_argument("--all", help = "whether to parse darshan.all or darshan.total", action = 'store_true')
 args = cmd_parser.parse_args()
 
 start_date = str(args.start_date)
@@ -481,6 +492,7 @@ start_date += " 00:00:00"
 end_date += " 23:59:59"
 src_darshan_dir = args.src_dir
 dst_darshan_dir = args.dst_dir
+parse_all = args.all
 
 reset_log = args.reset
 
@@ -501,9 +513,11 @@ processes = multiprocessing.Pool(NTHREADS)
 results = FormatParsedFiles(src_darshan_dir, 
                             dst_darshan_dir, 
                             int_start_date, 
-                            int_end_date)
+                            int_end_date,
+                            parse_all)
 for elem in results:
-    print("error file of dir:%s is %d\n"%(elem[1], elem[0].get()))
+    if elem[0].get() != 0:
+        print("error file of dir:%s is %d\n"%(elem[1], elem[0].get()))
 
 
 processes.close()
