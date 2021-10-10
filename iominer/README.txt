@@ -22,7 +22,9 @@ into a darshan human readable format, and stores them in a target directory, and
 a batch darshan formater (construct_darshan_map.py) that extracts all the counters from
 the parsed darshan logs and stores them into pandas dataframe, then persists the dataframe on the disk,
 a pandas dataframe constructor (gen_pandas_for_darsh.py) that concatenates all the results from construct_darshan_map.py for a specified periods 
-into a single dataframe, and persists it into the disk, a slurm dataframe constructor (gen_pandas_for_slurm.py) that
+into a single dataframe, and persists it into the disk, (extract_fields_for_darshan.py) that further
+extracts the specified fields from the output of gen_pandas_for_darsh.py within a given period, and
+store them into a pandas dataframe, a slurm dataframe constructor (gen_pandas_for_slurm.py) that
 takes in the result from batch_copy_darsh_lmt_slurm.py, and format slurm counters into
 pandas format indexed by jobid, gen_pandas_for_lmt.py that generates the lmt dataframe for
 LMT statistics, as well as parallel_coordinate_plot.py that contains functions 
@@ -308,10 +310,23 @@ Input directory structure:
 output:
     /sample/decompressed_darshan/darshan_state_<starttime>_<endtime>: serialized pandas dataframe, which can be deserialized using pickle
 
-Usage of gen_pandas_for_darsh.py 
+Usage of extract_fields_for_darshan.py 
+============================================================================
+python ./extract_fields_for_periods.py <start_time> <end_time> <result from gen_pandas_for_darsh.py> <output directory> <fields separated by comma> 
+
+Example:
+python ./extract_fields_for_periods.py 2017-08-01 2017-08-02 /sample/format_darshan /sample/fields total_POSIX_OPENS,total_POSIX_READS  
+
+Input directory structure
+/sample/format_darshan/darshan_state_<start_time>_<end_time>
+
+output:
+/sample/fields/darshan_state_total_POSIX_OPENS_total_POSIX_READS
+
+Usage of gen_pandas_for_slurm.py 
 =============================================================================
 Example:
-python ./gen_pandas_for_darsh.py 2019-01-01 2019-01-01 /sample/raw_slurm /sample/slurm_pandas 
+python ./gen_pandas_for_slurm.py 2019-01-01 2019-01-01 /sample/raw_slurm /sample/slurm_pandas 
 Input directory structure:
 /sample/raw_slurm/
 
@@ -321,6 +336,7 @@ Input directory structure:
 
 output:
 /sample/slurm_pandas/slurm_pd_<start_timestamp>_<end_timestamp>
+
 
 Usage of gen_pandas_for_lmt.py 
 ============================================================================
