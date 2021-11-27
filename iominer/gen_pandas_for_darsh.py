@@ -54,6 +54,7 @@ def ConstructDataFrame(format_darshan_root,
     while d <= end_date:
         format_darshan_dir = format_darshan_root + "/" + d.strftime("%Y/%-m/%-d/")
         if not os.path.exists(format_darshan_dir):
+            d += delta
             continue
 
         tot_stat_file_name = format_darshan_dir + "perjob_stat3.log"
@@ -61,33 +62,42 @@ def ConstructDataFrame(format_darshan_root,
         meta_stat_file_name = format_darshan_dir + "meta_stat3.log"
 
         if not os.path.exists(tot_stat_file_name):
+            d += delta
             continue
 
         if not os.path.exists(perfile_stat_file_name):
+            d += delta
             continue
 
         if not os.path.exists(meta_stat_file_name):
+            d += delta
             continue
 
         result = processes.apply_async(DeserToDataFrame, [tot_stat_file_name, perfile_stat_file_name, meta_stat_file_name]) 
         results.append((result, format_darshan_dir))
         d += delta 
         counter = 0 
-        for elem in results:
-            counter += elem[0].get()[0]
-            job_day_df_lst.append(elem[0].get()[1])
-    join_pd(job_tot_df, job_day_df_lst)
+#    print("results is %d\n"%len(results))
+    for elem in results:
+        counter += elem[0].get()[0]
+        job_day_df_lst.append(elem[0].get()[1])
+        print("thread %d done with file %s"%(elem[0].get()[2], elem[0].get()[3]))
+    job_tot_df = join_pd(job_day_df_lst)
     pickle.dump(job_tot_df, tot_fd, -1)
     return counter
 
 
-def join_pd(job_tot_df, job_day_df_lst):
+def join_pd(job_day_df_lst):
+
+    job_tot_df = pd.DataFrame()
+
+    
     for job_day_df in job_day_df_lst:
-#        job_day_df.info()
-        for (row_label, row_series) in job_day_df.iterrows():
-            for column,value in row_series.items():
-                job_tot_df.loc[row_label, column] = value
-#                print("joining:row is %s, column is %s, value is %s\n"%(row_label, column, value))
+        if job_tot_df.empty:
+            job_tot_df = job_tot_df.append(job_day_df, ignore_index = True)
+        else:
+            job_tot_df = job_tot_df.append(job_day_df)
+    return job_tot_df
 
 def DeserToDataFrame(tot_stat_file_name, perfile_stat_file_name, meta_stat_file_name):
     try:
@@ -109,12 +119,12 @@ def DeserToDataFrame(tot_stat_file_name, perfile_stat_file_name, meta_stat_file_
         return -1
 
     job_day_df = pd.DataFrame()
+    job_day_dict = {}
     META_PATTERN = '([^:]+):([0-9]+):([0-9]+),([0-9]+):([0-9]+)'
     meta_pat = re.compile(META_PATTERN)
     counter = 0
     meta_tuples = []
 
-    print("processing %s, pid:%d\n"%(tot_stat_file_name, os.getpid()))
     with open(meta_stat_file_name) as tmp_fp:
         line = tmp_fp.readline()
 #        print("file is %s,line is %s\n"%(meta_stat_file_name, line))
@@ -154,18 +164,26 @@ def DeserToDataFrame(tot_stat_file_name, perfile_stat_file_name, meta_stat_file_
     for (jname, joffset, jlen, foffset, flen) in meta_tuples:
         perjob_fd.seek(joffset)
         serialized_job_obj = perjob_fd.read(jlen)
-        jdarshan_df = pickle.loads(serialized_job_obj)
+        try:
+            jdarshan_df = pickle.loads(serialized_job_obj)
+        except:
+            print("###failed file is %s\n"%jname)
+            continue
 
         for row in range(len(jdarshan_df)):
-            for column,value in jdarshan_df.iloc[row].items():
+            for column, value in jdarshan_df.iloc[row].items():
 #                print("column:%s, value:%s, jname:%s\n"%(column, value, jname));
-                job_day_df.loc[jname, column] = value
-                job_day_df.loc[jname, "DETAIL_LOG_OFFSET"] = foffset
-                job_day_df.loc[jname, "DETAIL_LOG_LEN"] = flen
-                job_day_df.loc[jname, "DETAIL_LOG_FNAME"] = perfile_stat_file_name 
+                if job_day_dict.get(jname, -1) == -1:
+                    job_day_dict[jname] = {}
+                job_day_dict[jname][column] = value
+                job_day_dict[jname]["DETAIL_LOG_OFFSET"] = foffset
+                job_day_dict[jname]["DETAIL_LOG_LEN"] = flen
+                job_day_dict[jname]["DETAIL_LOG_FNAME"] = perfile_stat_file_name 
+        print("finished processing job:%s, pid:%d\n"%(jname, os.getpid()))
 
+    job_day_df = pd.DataFrame.from_dict(job_day_dict, orient = 'index')
 
-    return (counter, job_day_df)
+    return (counter, job_day_df, os.getpid(), tot_stat_file_name)
 
 cmd_parser = argparse.ArgumentParser()
 cmd_parser.add_argument("start_date", help = "start date in the format of y-m-d")
