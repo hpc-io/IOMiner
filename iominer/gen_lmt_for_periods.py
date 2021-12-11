@@ -53,25 +53,25 @@ import tokio.config
 
 
 mdsCPU = tokio.tools.hdf5.get_dataframe_from_time_range(
-                                       fsname="scratch1",
+                                       fsname="cscratch",
                                        dataset_name='MDSCPUGroup/MDSCPUDataSet',
                                        datetime_start=start_date_arr,
                                        datetime_end=end_date_arr)
 
 ossCPU = tokio.tools.hdf5.get_dataframe_from_time_range(
-                                      fsname="scratch1",
+                                      fsname="cscratch",
                                       dataset_name='OSSCPUGroup/OSSCPUDataSet',
                                       datetime_start=start_date_arr,
                                       datetime_end=end_date_arr)
 
 ostRead = tokio.tools.hdf5.get_dataframe_from_time_range(
-                                       fsname="scratch1",
+                                       fsname="cscratch",
                                        dataset_name='OSTReadGroup/OSTBulkReadDataSet',
                                        datetime_start=start_date_arr,
                                        datetime_end=end_date_arr)
 
 ostWrite = tokio.tools.hdf5.get_dataframe_from_time_range(
-                                fsname="scratch1",
+                                fsname="cscratch",
                                 dataset_name='OSTWriteGroup/OSTBulkWriteDataSet',
                                 datetime_start=start_date_arr,
                                 datetime_end=end_date_arr)
@@ -79,11 +79,11 @@ ostWrite = tokio.tools.hdf5.get_dataframe_from_time_range(
 int_start_date = int(datetime.timestamp(start_date_arr))
 int_end_date = int(datetime.timestamp(end_date_arr))
 
-
 dict_lmt = {}
 dict_lmt["mdsCPU"] = mdsCPU
 dict_lmt["ossCPU"] = ossCPU
 dict_lmt["ostRead"] = ostRead
+print(ostRead)
 dict_lmt["ostWrite"] = ostWrite
 
 
