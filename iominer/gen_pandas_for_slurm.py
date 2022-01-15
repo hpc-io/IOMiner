@@ -57,15 +57,17 @@ def convert_to_df(f, dst_dir, start_ts, end_ts):
     slurm_table = {}
     slurm_df = pd.DataFrame()
 
+    suc_cnt = 0
     glb_cursor = 0
+    fail_cnt = 0
+    batch_extern_cnt = 0
+    tot_cnt = 0
     while True:
         text = f.readline()
         print("line is %s, glb_cursor is %d\n"%(text, glb_cursor))
 #        if glb_cursor == 5:
 #            break
         if not text:
-            print("breaking\n")
-            sys.stdout.flush()
             break
         if glb_cursor >= 0:
             cursor = 0
@@ -73,6 +75,7 @@ def convert_to_df(f, dst_dir, start_ts, end_ts):
             record_lines = text.split("|")
             job_name = record_lines[0].split('.')[0].split('_')[0]
 #            print("job_name is %s, record line length is %d\n"%(job_name, len(record_lines)))
+            tot_cnt += 1
             if job_name in slurm_table:
                 cur_cnt = int(slurm_table[job_name]["count"])
                 slurm_table[job_name]["count"] = cur_cnt + 1
@@ -85,19 +88,25 @@ def convert_to_df(f, dst_dir, start_ts, end_ts):
                 slurm_table[job_name]["count"] = 1
                
 #                print("job name2:%s\n"%job_name)
-            print(record_lines)
+#            print(record_lines)
+
+            flag1 = 0
+            flag2 = 0
             for tmp_str in record_lines:
                 if header_lines[cursor] not in useful_metas:
                     cursor += 1
                     continue
                 if "JobID" == header_lines[cursor]:
                     if "COMPLETED" not in record_lines:
-                        cursor += 1
-                        continue
-        
-#                    if "batch" in tmp_str or "extern" in tmp_str:
-#                        cursor += 1
-#                        continue
+                        flag1 = 1
+                        fail_cnt += 1
+     
+                    if "batch" in tmp_str or "extern" in tmp_str:
+                        flag2 = 1
+                        batch_extern_cnt += 1
+
+                    if not flag1 and not flag2:
+                        suc_cnt += 1
                
 #                print("setting jobname:%s, headerlines:%s, value:%s\n"%(job_name, header_lines[cursor], tmp_str))
                 slurm_table[job_name][header_lines[cursor]] = tmp_str
@@ -108,8 +117,9 @@ def convert_to_df(f, dst_dir, start_ts, end_ts):
                         idx = str_ntasks.find('K')
                         if idx != -1: 
                             ntasks = float(str_ntasks[0:idx]) * 1000
-                            ntasks = int(ntasks)
-                            slurm_table[job_name][header_lines[cursor]] = ntasks
+                        else:
+                            ntasks = int(str_ntasks) 
+                        slurm_table[job_name][header_lines[cursor]] = ntasks
                 if header_lines[cursor] == "Elapsed":
                     time_str = slurm_table[job_name][header_lines[cursor]]
                     slurm_table[job_name][header_lines[cursor]] = get_sec(time_str)
@@ -132,10 +142,10 @@ def convert_to_df(f, dst_dir, start_ts, end_ts):
 #                print "job_name is %s, end:%s, cursor:%d, user:%s, app:%s\n"%(tmp_dict["JobID"], tmp_dict["End"], glb_cursor, tmp_dict["User"], tmp_dict["JobName"]) 
         glb_cursor = glb_cursor + 1
         sys.stdout.flush()
-   
     print("converting to dataframe...\n")
     sys.stdout.flush()
     slurm_df = pd.DataFrame.from_dict(slurm_table, orient = 'index')
+    print("tot_cnt:%d, fail_cnt:%d, batch_cnt:%d, table size:%d, dict size:%d, suc_cnt:%d\n"%(tot_cnt, fail_cnt, batch_extern_cnt, len(slurm_df.index), len(slurm_table), suc_cnt))
     print("after converting to dataframe...\n")
     sys.stdout.flush()
 #        print("\n")
@@ -169,17 +179,12 @@ def format_slurm_files(src_slurm_dir, dst_slurm_dir, start_ts, end_ts):
             qualified_files.append(cur_file)
     
     for cur_file in qualified_files:
-        with open(cur_file) as fd:
+        with open(cur_file, encoding = "utf8", errors = 'ignore') as fd:
             df = convert_to_df(fd, dst_slurm_dir, start_ts, end_ts )
-#            print(df)
-#            join_pd(job_tot_df, df)
-#            print(df)
-            print(df[["JobID"]])
             if job_tot_df.empty:
                 job_tot_df = job_tot_df.append(df, ignore_index = True)
             else:
                 job_tot_df = job_tot_df.append(df)
-#            print(job_tot_df[["JobID"]])
         print("finished joining %s\n"%cur_file)
         sys.stdout.flush()
 
