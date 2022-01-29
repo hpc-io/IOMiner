@@ -51,7 +51,6 @@ def repl_slurm_dir(dst_slurm_dir,\
     cmd = ['sacct','--allusers','--parsable',
         '--starttime=' + start_time,
         '--endtime=' + end_time,
-        '--state=CD',
         '--format=JobID%20,User%15,jobname%50,Start%22,End%22,Elapsed%20,State%20,AllocNodes,Ntasks,\
         AllocCPUs,ReqCPUS,SystemCPU%15,UserCPU%15,TotalCPU%16,\
         AveCPU%15,MinCPU%15,MinCPUNode,MinCPUTask,\
