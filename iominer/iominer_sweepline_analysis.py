@@ -16,7 +16,8 @@ import math
 print_file_cnt = 5
 max_ticks_to_show = 10
 max_ost_id = -1
-
+global log_on
+log_on = 1
 # This class corresponds to each 
 # Darshan record, i.e, for each rank, 
 # Darshan has one record for each 
@@ -614,12 +615,16 @@ def ExtractProcInfo(file_name):
         
     return ret_dict
 
+def disable_log():
+    log_on = 0
 def write_log(fmt_str):
+    if not log_on:
+        return 0
     try:
         log_fd.write(fmt_str)
         return 0
     except:
-        print("Fail to write log file\n")
+#        print("Fail to write log file\n")
         return 1
 
 def GetLineSize(line_tuples):
@@ -1769,89 +1774,91 @@ def SaveParserOutput(
     return ret_val
         
 
-cmd_parser = argparse.ArgumentParser()
-cmd_parser.add_argument("--darshan", help = "path of darshan compressed file")
-args = cmd_parser.parse_args()
-
-darshan_log = args.darshan
-sub_title = ntpath.basename(darshan_log)
-sub_title, extension = os.path.splitext(sub_title)
-log_file = "./"+sub_title+"_stat.log"
-
-try:
-    os.remove(log_file)
-except OSError:
-    pass
-
-try:
-    log_fd = open(log_file,"a")
-except:
-    print("Fail to open log file %s\n"%log_file)
-    exit(1)
-
-if extension == ".darshan":
-    parsed_darshan_log = "./"+darshan_log.rpartition('/')[2]+'.all'
-    ret_val = SaveParserOutput(darshan_log, parsed_darshan_log)
-    if ret_val < 0:
-        print("Invalid darshan format\n")
-else:
-    parsed_darshan_log = darshan_log
+if __name__ == "__main__":
+    cmd_parser = argparse.ArgumentParser()
+    cmd_parser.add_argument("--darshan", help = "path of darshan compressed file")
+    args = cmd_parser.parse_args()
     
-
-#if (ret_val != 0):
- #   print("[ERROR] darshan-parser failed to parse the specified darshan path!\n")
- 
-#parsed_darshan_log = "./chenb_vasp_neb_gamma_knl_id7267682_10-1-27018-14021789285964563928_1.darshan.all"
-
-stat_dict = ExtractProcInfo(parsed_darshan_log)
-
-
-# generate the read covering set by gen_sweep_line(r_rank_arr), and plot the read activities by plot_events
-r_sweep_line_set = []
-r_line_tuples = []
-if len(stat_dict["rank_file_rstat_lst"]) != 0:
-    (plt_points, r_sweep_line_set, r_line_tuples) = GenSweepLine(stat_dict["rank_file_rstat_lst"])
-    NormalizeLineTuples(plt_points, r_sweep_line_set, r_line_tuples)
-    PltEvents(plt_points, r_sweep_line_set, r_line_tuples, int(stat_dict["global_dict"]["nprocs"]), 'r', sub_title)
+    darshan_log = args.darshan
+    sub_title = ntpath.basename(darshan_log)
+    sub_title, extension = os.path.splitext(sub_title)
+    log_file = "./"+sub_title+"_stat.log"
     
-# generate the write covering set by gen_sweep_line(w_rank_arr), and plot the write activities by plot_events
-w_sweep_line_set = []
-w_line_tuples = []
-if len(stat_dict["rank_file_wstat_lst"]) != 0:
-    (plt_points, w_sweep_line_set, w_line_tuples) = GenSweepLine(stat_dict["rank_file_wstat_lst"])
-    NormalizeLineTuples(plt_points, w_sweep_line_set, w_line_tuples)
-    PltEvents(plt_points,w_sweep_line_set, w_line_tuples, int(stat_dict["global_dict"]["nprocs"]), 'w', sub_title)
+    try:
+        os.remove(log_file)
+    except OSError:
+        pass
     
-# generate the readwrite covering set by gen_sweep_line(wr_rank_arr), and plot the readwite activities by plot_events
-wr_sweep_line_set = []
-wr_line_tuples = []
-if len(stat_dict["rank_file_wrstat_lst"]) != 0:
-    (plt_points, wr_sweep_line_set, wr_line_tuples) = GenSweepLine(stat_dict["rank_file_wrstat_lst"])
-    NormalizeLineTuples(plt_points, wr_sweep_line_set, wr_line_tuples)
-    PltEvents(plt_points,wr_sweep_line_set, wr_line_tuples, int(stat_dict["global_dict"]["nprocs"]), 'wr', sub_title) 
+    try:
+        log_fd = open(log_file,"a")
+    except:
+        print("Fail to open log file %s\n"%log_file)
+        exit(1)
     
-ExtractContriFactors(stat_dict["ds_rank_stat_dict"], stat_dict["global_dict"],\
-                           stat_dict["ds_file_stat_dict"], wr_sweep_line_set,\
-                           r_line_tuples, w_line_tuples, \
-                           wr_line_tuples, stat_dict["ds_rank_io"], \
-                           line_point = None)
-
-PlotRankDataDistr(stat_dict["ds_rank_stat_dict"], sub_title)
-
-PlotReqCntDistr(stat_dict["ds_rank_stat_dict"], sub_title)
-
-PlotFileCntDistr(stat_dict["ds_rank_stat_dict"], sub_title)
-
-if max_ost_id != -1:
-    out_ost_lst = CalOSTSizeDistri(stat_dict["ds_ost_dict"],\
-                                   stat_dict["ds_file_stat_dict"],\
-                                   stat_dict["ds_rank_stat_dict"]
-                                   )
-    marked_ost_lst = GetMarkedOST(stat_dict["ds_ost_dict"],\
-                                  wr_sweep_line_set,\
-                                  print_file_cnt)
-    PlotOSTDs(out_ost_lst, marked_ost_lst, sub_title)
-    PlotOSTNProcs(out_ost_lst, marked_ost_lst, sub_title)
+    if extension == ".darshan":
+        parsed_darshan_log = "./"+darshan_log.rpartition('/')[2]+'.all'
+        ret_val = SaveParserOutput(darshan_log, parsed_darshan_log)
+        if ret_val < 0:
+            print("Invalid darshan format\n")
+    else:
+        parsed_darshan_log = darshan_log
+        
     
-log_fd.close()
+    #if (ret_val != 0):
+     #   print("[ERROR] darshan-parser failed to parse the specified darshan path!\n")
+     
+    #parsed_darshan_log = "./chenb_vasp_neb_gamma_knl_id7267682_10-1-27018-14021789285964563928_1.darshan.all"
 
+   
+    stat_dict = ExtractProcInfo(parsed_darshan_log)
+
+
+    # generate the read covering set by gen_sweep_line(r_rank_arr), and plot the read activities by plot_events
+    r_sweep_line_set = []
+    r_line_tuples = []
+    if len(stat_dict["rank_file_rstat_lst"]) != 0:
+        (plt_points, r_sweep_line_set, r_line_tuples) = GenSweepLine(stat_dict["rank_file_rstat_lst"])
+        NormalizeLineTuples(plt_points, r_sweep_line_set, r_line_tuples)
+        PltEvents(plt_points, r_sweep_line_set, r_line_tuples, int(stat_dict["global_dict"]["nprocs"]), 'r', sub_title)
+        
+    # generate the write covering set by gen_sweep_line(w_rank_arr), and plot the write activities by plot_events
+    w_sweep_line_set = []
+    w_line_tuples = []
+    if len(stat_dict["rank_file_wstat_lst"]) != 0:
+        (plt_points, w_sweep_line_set, w_line_tuples) = GenSweepLine(stat_dict["rank_file_wstat_lst"])
+        NormalizeLineTuples(plt_points, w_sweep_line_set, w_line_tuples)
+        PltEvents(plt_points,w_sweep_line_set, w_line_tuples, int(stat_dict["global_dict"]["nprocs"]), 'w', sub_title)
+        
+    # generate the readwrite covering set by gen_sweep_line(wr_rank_arr), and plot the readwite activities by plot_events
+    wr_sweep_line_set = []
+    wr_line_tuples = []
+    if len(stat_dict["rank_file_wrstat_lst"]) != 0:
+        (plt_points, wr_sweep_line_set, wr_line_tuples) = GenSweepLine(stat_dict["rank_file_wrstat_lst"])
+        NormalizeLineTuples(plt_points, wr_sweep_line_set, wr_line_tuples)
+        PltEvents(plt_points,wr_sweep_line_set, wr_line_tuples, int(stat_dict["global_dict"]["nprocs"]), 'wr', sub_title) 
+        
+    ExtractContriFactors(stat_dict["ds_rank_stat_dict"], stat_dict["global_dict"],\
+                               stat_dict["ds_file_stat_dict"], wr_sweep_line_set,\
+                               r_line_tuples, w_line_tuples, \
+                               wr_line_tuples, stat_dict["ds_rank_io"], \
+                               line_point = None)
+    
+    PlotRankDataDistr(stat_dict["ds_rank_stat_dict"], sub_title)
+    
+    PlotReqCntDistr(stat_dict["ds_rank_stat_dict"], sub_title)
+    
+    PlotFileCntDistr(stat_dict["ds_rank_stat_dict"], sub_title)
+    
+    if max_ost_id != -1:
+        out_ost_lst = CalOSTSizeDistri(stat_dict["ds_ost_dict"],\
+                                       stat_dict["ds_file_stat_dict"],\
+                                       stat_dict["ds_rank_stat_dict"]
+                                       )
+        marked_ost_lst = GetMarkedOST(stat_dict["ds_ost_dict"],\
+                                      wr_sweep_line_set,\
+                                      print_file_cnt)
+        PlotOSTDs(out_ost_lst, marked_ost_lst, sub_title)
+        PlotOSTNProcs(out_ost_lst, marked_ost_lst, sub_title)
+        
+    log_fd.close()
+    
